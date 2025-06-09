@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <title>Карточная Игра</title>
+    <link rel="stylesheet" href="index.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, orientation=landscape">
+    <style>
+        @media screen and (orientation: portrait) {
+            body {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                font-size: 4vw;
+                background-color: #000;
+                color: #fff;
+                text-align: center;
+            }
+
+            #game,
+            #nickname {
+                display: none !important;
+            }
+
+            body::before {
+                content: "🔄 Поверните устройство в альбомную ориентацию";
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <input id="nickname">
+    <div id="game" style="display: none;">
+        <div id="cards"></div>
+        <div id="panel">
+            <span id="sum"></span>
+            <div id="players">
+            </div>
+        </div>
+    </div>
+    <div id="msg-block"></div>
+    <script type="module" src="index.js"></script>
+</body>
+
+</html>
