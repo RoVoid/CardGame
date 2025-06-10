@@ -138,6 +138,11 @@ body {
 .card {
     cursor: pointer;
     margin: 5px;
+    border: none;
+}
+
+.card[selected] {
+    border: 2px solid white
 }
 
 /* Типы карт */

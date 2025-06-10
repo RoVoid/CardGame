@@ -12,6 +12,7 @@ nicknameInput.addEventListener('change', function () {
     myNickname = this.value.trim();
     if (this.value) send('nickname', { nickname: myNickname });
 });
+window.onload = () => nicknameInput.focus();
 
 const gameElement = document.getElementById('game')!;
 
@@ -60,7 +61,7 @@ ws.addEventListener('message', (event) => {
                     nicknameInput.value = '';
                     nicknameInput.style.display = '';
                     gameElement.style.display = 'none';
-                }, showMessage(data ? (data.uuid === myUuid ? `😭 Игра окончена! Вы проигрываете! 💔` : `🎉 Игра окончена! ${data.nickname} проигрывает! 😎👌🔥`) : '🛑 Игра отменена!') + 5000);
+                }, showMessage(data ? (data.uuid === myUuid ? `😭 Игра окончена! Вы проигрываете! 💔` : `🎉 Игра окончена! ${data.nickname} проигрывает! 😎👌🔥`) : '🛑 Игра отменена!') + 1000);
                 break; // Ошибка: "Вы проигрываете!" выходит на одну секунду!
 
             case 'playerLeft':
@@ -113,7 +114,7 @@ function renderHand() {
         const div = document.createElement('div');
         div.className = 'card';
         div.setAttribute('type', card);
-        div.onclick = () => tryUseCard(card);
+        div.onclick = () => tryUseCard(div, card);
         handDiv.appendChild(div);
     }
 }
@@ -166,20 +167,28 @@ function renderPlayers(players: any[]) {
     }
 }
 
+let selectedCardDiv: HTMLDivElement | null = null;
 let selectedCard: string | null = null;
-function tryUseCard(card: string) {
+function tryUseCard(div: HTMLDivElement, card: string) {
     if (moveUUID === myUuid && card) {
-        selectedCard = card;
         if (['0', '1', '2', '3', '4'].includes(card)) {
             send('use', { cardType: card, targetUUID: myUuid });
             hideMessage();
-        } else showMessage('Выберите цель, кликнув на игрока (можно себя)');
+        } else {
+            if (selectedCardDiv && selectedCardDiv !== div) selectedCardDiv.removeAttribute('selected');
+            selectedCardDiv = div;
+            selectedCard = card;
+            selectedCardDiv?.toggleAttribute('selected');
+            showMessage('Выберите цель, кликнув на игрока (можно себя)');
+        }
     }
 }
 
 function selectTarget(targetUUID: string) {
     if (!selectedCard || moveUUID !== myUuid) return;
     send('use', { cardType: selectedCard, targetUUID });
+    selectedCardDiv?.removeAttribute('selected');
+    selectedCardDiv = null;
     selectedCard = null;
     hideMessage();
 }
@@ -194,27 +203,33 @@ function showMessage(msg: string) {
     el.style.display = 'block';
     el.classList.add('visible');
 
-    const duration = Math.max(5000, msg.length * 300);
+    const duration = Math.min(Math.max(2000, msg.length * 100), 10000);
     timer = setTimeout(() => {
         el.classList.remove('visible');
-        setTimeout(() => {
-            el.style.display = 'none';
-            el.textContent = '';
-        }, 300);
+        el.addEventListener(
+            'transitionend',
+            () => {
+                el.style.display = 'none';
+                el.textContent = '';
+            },
+            { once: true },
+        );
     }, duration);
-
-    timer.refresh;
 
     return duration;
 }
 
 function hideMessage() {
-    clearTimeout(timer!);
+    if (timer) clearTimeout(timer);
     timer = null;
     const el = document.getElementById('msg-block')!;
     el.classList.remove('visible');
-    setTimeout(() => {
-        el.style.display = 'none';
-        el.textContent = '';
-    }, 300);
+    el.addEventListener(
+        'transitionend',
+        () => {
+            el.style.display = 'none';
+            el.textContent = '';
+        },
+        { once: true },
+    );
 }
