@@ -28,6 +28,27 @@ body {
     text-align: center;
     background-color: #303030;
     color: white;
+    line-height: 1.6;
+}
+
+@keyframes nickAccept {
+    from {
+        color: #0d0
+    }
+
+    to {
+        color: white
+    }
+}
+
+@keyframes nickReject {
+    from {
+        color: #dd0
+    }
+
+    to {
+        color: white
+    }
 }
 
 #game {

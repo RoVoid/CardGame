@@ -101,9 +101,10 @@ wss.on('connection', (ws) => {
 
             if (type === 'nickname') {
                 let oldNickname = player.nickname;
-                player.nickname = data?.nickname?.trim().slice(0, 24) || player.nickname;
+                player.nickname = data?.nickname?.trim().slice(0, 16) || player.nickname;
                 if (oldNickname !== player.nickname) log(`✏️ ${oldNickname} переименуется в ${player.nickname}`);
                 if (isGame) broadcast('gameStats', getGameStats());
+                send(ws, type, { nickname: player.nickname });
             } else if (type === 'use') {
                 if (!isGame || moveIndex < 0 || players[moveIndex]?.uuid !== player.uuid || !data) return;
 
@@ -255,9 +256,7 @@ function getGameStats() {
 }
 
 function send(ws: WebSocket, type: string, data?: object) {
-    if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type, data }));
-    }
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, data }));
 }
 
 function broadcast(type: string, data?: object) {

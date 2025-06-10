@@ -14,6 +14,9 @@ nicknameInput.addEventListener('change', function () {
 });
 window.onload = () => nicknameInput.focus();
 
+const endAudio = new Audio('./assets/end.mp3');
+const moveAudio = new Audio('./assets/move.mp3');
+
 const gameElement = document.getElementById('game')!;
 
 const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -30,10 +33,21 @@ ws.addEventListener('message', (event) => {
         switch (type) {
             case 'index':
                 myUuid = data.uuid;
-                myNickname = data.nickname;
-                nicknameInput.placeholder = myNickname;
-                nicknameInput.value = '';
+                myNickname = nicknameInput.placeholder = data.nickname;
                 console.log(`🆔 UUID: ${myUuid}`);
+                console.log(`   Nickname: ${myNickname}`);
+                break;
+
+            case 'nickname':
+                let isEqual = myNickname === data.nickname;
+                myNickname = data.nickname;
+                if (nicknameInput.style.display !== 'none') {
+                    nicknameInput.placeholder = nicknameInput.value = myNickname;
+                    nicknameInput.style.animation = 'none';
+                    nicknameInput.offsetHeight;
+                    nicknameInput.style.animation = (isEqual ? 'nickAccept' : 'nickReject') + ' 0.5s 1';
+                }
+                console.log(`✏️ Nickname: ${myNickname}`);
                 break;
 
             case 'say':
@@ -62,6 +76,15 @@ ws.addEventListener('message', (event) => {
                     nicknameInput.style.display = '';
                     gameElement.style.display = 'none';
                 }, showMessage(data ? (data.uuid === myUuid ? `😭 Игра окончена! Вы проигрываете! 💔` : `🎉 Игра окончена! ${data.nickname} проигрывает! 😎👌🔥`) : '🛑 Игра отменена!') + 1000);
+                endAudio.play();
+                /* 
+                    timeStart = time()
+                    timeEnd = time() + 1
+                    if(timeStart >= timeEnd) code()
+
+                    timer = time()                
+                    if(0 >= timer) code()
+                */
                 break; // Ошибка: "Вы проигрываете!" выходит на одну секунду!
 
             case 'playerLeft':
@@ -102,9 +125,7 @@ ws.addEventListener('error', () => {
 });
 
 function send(type: string, data: any = {}) {
-    if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type, data }));
-    }
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, data }));
 }
 
 function renderHand() {
@@ -173,6 +194,7 @@ function tryUseCard(div: HTMLDivElement, card: string) {
     if (moveUUID === myUuid && card) {
         if (['0', '1', '2', '3', '4'].includes(card)) {
             send('use', { cardType: card, targetUUID: myUuid });
+            moveAudio.play();
             hideMessage();
         } else {
             if (selectedCardDiv && selectedCardDiv !== div) selectedCardDiv.removeAttribute('selected');
@@ -187,6 +209,7 @@ function tryUseCard(div: HTMLDivElement, card: string) {
 function selectTarget(targetUUID: string) {
     if (!selectedCard || moveUUID !== myUuid) return;
     send('use', { cardType: selectedCard, targetUUID });
+    moveAudio.play();
     selectedCardDiv?.removeAttribute('selected');
     selectedCardDiv = null;
     selectedCard = null;
