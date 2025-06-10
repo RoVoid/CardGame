@@ -76,7 +76,7 @@ ws.addEventListener('message', (event) => {
                     nicknameInput.style.display = '';
                     gameElement.style.display = 'none';
                 }, showMessage(data ? (data.uuid === myUuid ? `😭 Игра окончена! Вы проигрываете! 💔` : `🎉 Игра окончена! ${data.nickname} проигрывает! 😎👌🔥`) : '🛑 Игра отменена!') + 1000);
-                endAudio.play();
+                if (data) endAudio.play();
                 /* 
                     timeStart = time()
                     timeEnd = time() + 1
@@ -128,6 +128,17 @@ function send(type: string, data: any = {}) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, data }));
 }
 
+const tooltips: Record<string, string> = {
+    '0': 'Карточка с суммой = 0',
+    '1': 'Карточка с суммой = 1',
+    '2': 'Карточка с суммой = 2',
+    '3': 'Карточка с суммой = 3',
+    '4': 'Карточка с суммой = 4',
+    plus: 'Карточка с суммой = 1. Увеличивает стоимость карт игрока на 1, 3 переходит в 0. Не действует на <span style="color:#090909">#000</span> карты и на игрока без карт!',
+    bin: 'Удаляет все выложенные карты игрока. Не действует на игрока без карт!',
+    swap: 'Меняет карты на руках с другим игроком. Если игрок идёт после вас, ему достаётся карта "0". Не действует на игрока без карт!',
+};
+
 function renderHand() {
     const handDiv = document.getElementById('cards')!;
     handDiv.innerHTML = '';
@@ -136,6 +147,10 @@ function renderHand() {
         div.className = 'card';
         div.setAttribute('type', card);
         div.onclick = () => tryUseCard(div, card);
+        const tooltip = document.createElement('span');
+        tooltip.className = 'tooltip';
+        tooltip.innerHTML = tooltips[card];
+        div.appendChild(tooltip);
         handDiv.appendChild(div);
     }
 }
