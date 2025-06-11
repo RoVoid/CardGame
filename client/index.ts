@@ -19,6 +19,19 @@ const moveAudio = new Audio('./assets/move.mp3');
 
 const gameElement = document.getElementById('game')!;
 
+const playersElement = document.getElementById('players')!;
+
+playersElement.addEventListener(
+    'wheel',
+    (e) => {
+        if (e.deltaY !== 0) {
+            e.preventDefault();
+            playersElement.scrollLeft += e.deltaY / 2;
+        }
+    },
+    { passive: false },
+);
+
 const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
 const ws = new WebSocket(`${wsProtocol}://${location.host}`);
 
@@ -134,7 +147,7 @@ const tooltips: Record<string, string> = {
     '2': 'Карточка с суммой = 2',
     '3': 'Карточка с суммой = 3',
     '4': 'Карточка с суммой = 4',
-    plus: 'Карточка с суммой = 1. Увеличивает стоимость карт игрока на 1, 3 переходит в 0. Не действует на <span style="color:#090909">#000</span> карты и на игрока без карт!',
+    plus: 'Карточка с суммой = 1. Увеличивает стоимость карт игрока на 1, 3 переходит в 0. Не действует на <span style="color:#151515">#000</span> карты и на игрока без карт!',
     bin: 'Удаляет все выложенные карты игрока. Не действует на игрока без карт!',
     swap: 'Меняет карты на руках с другим игроком. Если игрок идёт после вас, ему достаётся карта "0". Не действует на игрока без карт!',
 };
@@ -165,7 +178,7 @@ function renderPlayers(players: any[]) {
         const container = document.createElement('div');
         container.className = 'player';
         container.id = `player-${pl.uuid}`;
-        if (pl.uuid === moveUUID) container.style.border = '2px solid green';
+        if (pl.uuid === moveUUID) container.toggleAttribute('selected');
 
         const title = document.createElement('span');
         title.textContent = `${pl.nickname}  /  ${pl.sum}`;
@@ -215,7 +228,7 @@ function tryUseCard(div: HTMLDivElement, card: string) {
             if (selectedCardDiv && selectedCardDiv !== div) selectedCardDiv.removeAttribute('selected');
             selectedCardDiv = div;
             selectedCard = card;
-            selectedCardDiv?.toggleAttribute('selected');
+            selectedCardDiv?.toggleAttribute('selected', true);
             showMessage('Выберите цель, кликнув на игрока (можно себя)');
         }
     }
@@ -238,20 +251,11 @@ function calculateSum(players: any[]): number {
 function showMessage(msg: string) {
     const el = document.getElementById('msg-block')!;
     el.textContent = msg;
-    el.style.display = 'block';
     el.classList.add('visible');
 
     const duration = Math.min(Math.max(2000, msg.length * 100), 10000);
     timer = setTimeout(() => {
         el.classList.remove('visible');
-        el.addEventListener(
-            'transitionend',
-            () => {
-                el.style.display = 'none';
-                el.textContent = '';
-            },
-            { once: true },
-        );
     }, duration);
 
     return duration;
@@ -262,12 +266,4 @@ function hideMessage() {
     timer = null;
     const el = document.getElementById('msg-block')!;
     el.classList.remove('visible');
-    el.addEventListener(
-        'transitionend',
-        () => {
-            el.style.display = 'none';
-            el.textContent = '';
-        },
-        { once: true },
-    );
 }

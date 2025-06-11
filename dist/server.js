@@ -96,7 +96,7 @@ wss.on('connection', (ws) => {
                 if (!target)
                     return;
                 const isNumber = ['0', '1', '2', '3', '4'].includes(cardType);
-                if ((isNumber && target.uuid !== player.uuid) || (!isNumber && target.cards.length === 0))
+                if ((isNumber && target.uuid !== player.uuid) || (!isNumber && cardType !== 'bin' && target.cards.length === 0))
                     return;
                 player.usedCards.push(cardType);
                 player.cards.splice(player.cards.indexOf(cardType), 1);

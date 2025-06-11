@@ -3,19 +3,25 @@
     src: url('./assets/minecraft.ttf');
 }
 
-body {
-    color: white;
-    background-color: #121212;
-    font-family: 'mine';
-    font-size: 1.5vw;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    height: 100vh;
-    word-spacing: 5px;
-
+* {
+    user-select: none;
 }
 
+body {
+    display: flex;
+    height: 100vh;
+
+    margin: 0;
+    padding: 0;
+    background-color: #121212;
+
+    font-family: 'mine';
+    font-size: 1.5vw;
+    word-spacing: 5px;
+    color: white;
+}
+
+/* Никнейм */
 #nickname {
     position: absolute;
     top: 50%;
@@ -33,6 +39,7 @@ body {
     line-height: 1.6;
 }
 
+/* Анимации */
 @keyframes nickAccept {
     from {
         color: #0d0
@@ -53,69 +60,19 @@ body {
     }
 }
 
+/* Игра */
 #game {
-    padding: 1vw;
+    padding: 2vw;
     display: flex;
     align-items: center;
-    width: 100%;
+    flex: 1;
+    overflow: hidden;
 }
 
-#panel {
-    display: flex;
-    flex-direction: column;
-    gap: 1vw;
-    width: 90%;
-}
-
-#sum {
-    /* font-size: 2vw; */
-    text-align: center;
-    margin-bottom: 1vw;
-}
-
-#players {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    gap: 1vw;
-    justify-content: flex-start;
-    padding-bottom: 1vw;
-    scroll-snap-type: x mandatory;
-    max-width: 100%;
-    /* ограничение по ширине экрана */
-    box-sizing: border-box;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
-    touch-action: pan-x;
-
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-}
-
-#players::-webkit-scrollbar {
-    display: none;
-}
-
-
-.player {
-    background-color: #282828;
-    border-radius: 1vw;
-    padding: 1vw;
-    min-width: 20vw;
-    /* стало шире для пальца на мобиле */
-    max-width: 50vw;
-    text-align: center;
-    font-size: 1.5vw;
-    scroll-snap-align: start;
-    /* чтобы фиксировалось при прокрутке */
-}
-
-.player span {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 0.5vw;
+/* Колода игрока */
+#cards {
+    width: 10%;
+    height: min-content;
 }
 
 .card {
@@ -124,65 +81,7 @@ body {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-    border: none;
     image-rendering: pixelated;
-}
-
-.cards,
-.used-cards {
-    display: flex;
-    flex-wrap: nowrap;
-    /* 🔸 отключаем перенос */
-    overflow: hidden;
-    /* 🔸 скрываем выходящие за границы */
-    width: 100%;
-    margin-top: 0.5vw;
-}
-
-.used-cards .card {
-    width: 64px;
-    height: 64px;
-    flex: 0 0 auto;
-    margin-left: var(--gap, -20px);
-    z-index: 1;
-    position: relative;
-}
-
-.used-cards .card:first-child {
-    margin-left: 5px;
-}
-
-
-#cards {
-    width: 10%;
-    height: min-content;
-}
-
-#cards .card .tooltip {
-    visibility: hidden;
-    width: max-content;
-    background-color: black;
-    color: #fff;
-    border-radius: 6px;
-    padding: 10px;
-
-    white-space: nowrap;
-    word-spacing: 3px;
-
-    /* Position the tooltip */
-    position: absolute;
-    z-index: 1;
-
-    font-size: 0.75vw;
-    left: 110%;
-}
-
-
-#cards .card:hover .tooltip {
-    visibility: visible;
-}
-
-.card {
     cursor: pointer;
     margin: 5px;
     border: none;
@@ -190,7 +89,8 @@ body {
 }
 
 .card[selected] {
-    border: 2px solid white
+    border: 3px solid white;
+    border-radius: 12px;
 }
 
 /* Типы карт */
@@ -230,30 +130,133 @@ body {
     background-image: url('assets/hidden.png');
 }
 
-/* Сообщение */
+/* Подсказка */
+.card .tooltip {
+    visibility: hidden;
+    width: max-content;
+    background-color: black;
+    color: #fff;
+    border-radius: 6px;
+    padding: 10px;
+    white-space: nowrap;
+    word-spacing: 3px;
+    position: absolute;
+    z-index: 2;
+    font-size: 0.75vw;
+    left: 110%;
+}
+
+.card:hover .tooltip {
+    visibility: visible;
+}
+
+/* Панель */
+#panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1vw;
+    max-width: 85%;
+    width: max-content;
+}
+
+#sum {
+    text-align: center;
+    font-size: 2vw;
+    margin-bottom: 1vw;
+}
+
+/* Игроки */
+#players {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(2, 1fr);
+    gap: 1vw;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    padding-bottom: 1vw;
+    box-sizing: border-box;
+
+    touch-action: pan-x;
+
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    margin: 0 auto;
+    max-width: 100%;
+}
+
+#players::-webkit-scrollbar {
+    display: none;
+}
+
+.player {
+    scroll-snap-align: start;
+    min-width: 20vw;
+    max-width: 50vw;
+    height: auto;
+
+    background-color: #282828;
+    border-radius: 1vw;
+    padding: 1vw;
+    text-align: center;
+    font-size: 1.5vw;
+
+    box-sizing: border-box;
+}
+
+
+.player[selected] {
+    border: 2px solid green;
+    background-color: #283528;
+}
+
+.player span {
+    margin-bottom: 0.5vw;
+}
+
+.player>* {
+    pointer-events: none;
+}
+
+.cards,
+.used-cards {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    width: 100%;
+    margin-top: 0.5vw;
+}
+
+.used-cards .card {
+    flex: 0 0 auto;
+    margin-left: var(--gap, -20px);
+    z-index: 1;
+}
+
+.used-cards .card:first-child {
+    margin-left: 5px;
+}
+
+/* Сообщения */
 #msg-block {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0s 0.3s;
     position: fixed;
     bottom: 5%;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(50, 50, 50, 0.9);
-    color: white;
     padding: 1em 2em;
     border-radius: 8px;
-    font-size: inherit;
-    max-width: 90vw;
-    text-align: center;
-    display: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: 1000;
+    max-width: 80vw;
+    z-index: 10;
 }
 
 #msg-block.visible {
-    display: block;
+    visibility: visible;
     opacity: 1;
-}
-
-.player>* {
-    pointer-events: none;
+    transition-delay: 0s;
 }
