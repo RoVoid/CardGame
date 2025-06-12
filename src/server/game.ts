@@ -3,7 +3,7 @@ export {};
 
 import { WebSocket } from 'ws';
 
-import { Client, closing, getClients, log, sendToUuid } from './main.js';
+import { Client, closing, getClients, log, ops, sendToUuid } from './main.js';
 import { skip } from 'node:test';
 
 type Player = {
@@ -100,16 +100,19 @@ export function handleCardUse(uuid: string, cardType: string, targetIndex: numbe
 // }
 
 export function handleConnect(client: Client, reconnected: boolean) {
-    let index = reconnected ? players.findIndex((pl) => pl.uuid === client.uuid) : players.length;
+    const index = reconnected ? players.findIndex((pl) => pl.uuid === client.uuid) : players.length;
+
     if (isGameRunning && index === players.length) {
         client.ws.close(1001); // Игра уже идёт
         return false;
     }
-    if (maxPlayerNumber <= players.length) {
+
+    if (players.length >= maxPlayerNumber) {
         client.ws.close(1002); // Максимальное число игроков
         return false;
     }
-    if (reconnected) {
+
+    if (isGameRunning && reconnected) {
         sendToUuid(client.uuid, 'start', {
             sumLimit,
             players: players.map((pl) => ({
@@ -119,10 +122,20 @@ export function handleConnect(client: Client, reconnected: boolean) {
                 sum: pl.sum,
             })),
         });
+        sendToUuid(client.uuid, 'index', { index });
         sendToUuid(client.uuid, 'move', { index: moveIndex, skip: false });
     } else {
-        players.push({ uuid: client.uuid, index, cards: [], usedCards: [], sum: 0 });
+        players.push({
+            uuid: client.uuid,
+            index,
+            cards: [],
+            usedCards: [],
+            sum: 0,
+        });
     }
+
+    if (ops.includes(client.uuid)) sendToUuid(client.uuid, 'op');
+
     return true;
 }
 
@@ -133,6 +146,7 @@ export function handleDisconnect(uuid: string, code: number) {
     if (isGameRunning) {
         broadcast('playerLeft', { index });
         if (players.length <= 1) endGame(true);
+        else broadcast('move', { index: moveIndex, skip: true });
     }
 }
 

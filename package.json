@@ -5,7 +5,7 @@
   "main": "dist/server/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json",
-    "start": "cls && node server/main.js",
+    "start": "node server/main.js",
     "dev": "npm run build && npm run start"
   },
   "dependencies": {

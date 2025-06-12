@@ -12,6 +12,8 @@ import pidusage from 'pidusage';
 import readline from 'readline';
 import cookieParser from 'cookie-parser';
 import fs from 'fs';
+import dns from 'dns';
+import https from 'https';
 
 import {
     applyConfig,
@@ -42,6 +44,7 @@ let clientsNumber = 0;
 export let closing = false;
 
 const config = JSON.parse(fs.readFileSync('config.json', 'utf-8'));
+export const ops = (config.ops || []) as string[];
 applyConfig(config);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -68,12 +71,10 @@ app.get('/cookies', (req, res) => {
         });
     }
 
-    log(`✅ ${nickname} подключается`);
-    log(`   ${uuid}`);
+    log(`📡 ${nickname} подключается`);
+    log(`   ${uuid}\n`);
 
     res.status(200).send();
-
-    // res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
 wss.on('connection', (ws) => {
@@ -92,9 +93,12 @@ wss.on('connection', (ws) => {
         client = { uuid, ws, nickname };
         clients[uuid] = client;
 
-        if (!handleConnect(client, reconnected)) return;
+        if (!handleConnect(client, reconnected)) {
+            error(`${client.nickname} не авторизуется!\n`);
+            return;
+        }
 
-        log(`✅ ${client.nickname} авторизуется`);
+        log(`✅ ${client.nickname} авторизуется\n`);
 
         ws.on('message', (rawData) => {
             try {
@@ -134,6 +138,7 @@ wss.on('connection', (ws) => {
                 if (!clients[client.uuid]) {
                     handleDisconnect(client.uuid, code);
                     error(`${client.nickname} отключился`);
+                    clientsNumber--;
                 }
             }, 500);
     });
@@ -271,4 +276,32 @@ server.listen(PORT, () => {
             }
         }
     }
+
+    log();
+
+    logReverseDNS();
 });
+
+function getPublicIP(): Promise<string> {
+    return new Promise((resolve, reject) =>
+        https
+            .get('https://api.ipify.org', (res) => {
+                let data = '';
+                res.on('data', (chunk) => (data += chunk));
+                res.on('end', () => resolve(data.trim()));
+            })
+            .on('error', reject),
+    );
+}
+
+async function logReverseDNS() {
+    try {
+        const ip = await getPublicIP();
+        dns.reverse(ip, (err, hostnames) => {
+            if (err) error(`Обратный DNS не найден для ${ip}`);
+            else for (const name of hostnames) log(`🌍 DNS-домен: http://${name}:${PORT}`);
+        });
+    } catch {
+        error(`Не удалось получить внешний IP`);
+    }
+}

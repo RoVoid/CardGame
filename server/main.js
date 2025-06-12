@@ -212,10 +212,14 @@ rl.on('line', (input) => {
         log('❓ Неизвестная команда');
 });
 process.on('SIGINT', closeServer);
+import dns from 'dns';
+import https from 'https';
 const PORT = 8080;
 server.listen(PORT, () => {
     log(`🚀 Сервер запущен на:`);
     log(`  💻 http://localhost:${PORT}`);
+    log(`  🖥️  http://${os.hostname()}:${PORT}`);
+    logReverseDNS();
     const nets = os.networkInterfaces();
     for (const name in nets) {
         for (const net of nets[name]) {
@@ -227,3 +231,31 @@ server.listen(PORT, () => {
         }
     }
 });
+function getPublicIP() {
+    return new Promise((resolve, reject) => {
+        https
+            .get('https://api.ipify.org', (res) => {
+            let data = '';
+            res.on('data', (chunk) => (data += chunk));
+            res.on('end', () => resolve(data.trim()));
+        })
+            .on('error', reject);
+    });
+}
+async function logReverseDNS() {
+    try {
+        const ip = await getPublicIP();
+        dns.reverse(ip, (err, hostnames) => {
+            if (err) {
+                log(`❌ Обратный DNS не найден для ${ip}`);
+            }
+            else {
+                for (const name of hostnames)
+                    log(`🌍 DNS-домен: http://${name}:${PORT}`);
+            }
+        });
+    }
+    catch (e) {
+        log(`❌ Не удалось получить внешний IP`);
+    }
+}

@@ -1,4 +1,5 @@
 {
+    "ops": [],
     "game": {
         "maxPlayerNumber": 10,
         "minSum": 12,

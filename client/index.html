@@ -3,6 +3,7 @@
 
 <head>
     <title>Карточная Игра</title>
+    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico">
     <link rel="stylesheet" href="index.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, orientation=landscape">
@@ -32,7 +33,10 @@
 </head>
 
 <body>
-    <input id="nickname">
+    <div id="lobby" style="display: none;">
+        <input id="nickname">
+        <button id="start">Начать</button>
+    </div>
     <div id="game" style="display: none;">
         <div id="cards"></div>
         <div id="panel">
