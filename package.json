@@ -2,23 +2,27 @@
   "name": "card-game",
   "version": "1.0.0",
   "description": "A simple browser multiplayer game using WebSockets and TypeScript.",
-  "main": "dist/server.js",
+  "main": "dist/server/main.js",
   "scripts": {
-    "start": "npm run build && cls && node dist/server.js",
-    "dev": "ts-node server.ts",
-    "build": "tsc"
+    "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json",
+    "start": "cls && node server/main.js",
+    "dev": "npm run build && npm run start"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "express": "^5.1.0",
-    "pidusage": "^4.0.1",
     "ws": "^8.18.2"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.2",
+    "@types/node": "^20.19.0",
     "@types/pidusage": "^2.0.5",
     "@types/ws": "^8.18.1",
+    "pidusage": "^4.0.1",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
   },
-  "author": "RoVoid"
+  "author": "RoVoid",
+  "type": "module"
 }

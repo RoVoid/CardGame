@@ -1,11 +1,9 @@
 {
     "compilerOptions": {
-        "target": "ES2020",
-        "module": "CommonJS",
-        "rootDir": ".",
-        "outDir": "dist",
+        "target": "es2022",
+        "module": "es2022",
         "strict": true,
-        "esModuleInterop": true
-    },
-    "include": ["client/**/*", "server.ts"]
+        "esModuleInterop": true,
+        "moduleResolution": "Node"
+    }
 }

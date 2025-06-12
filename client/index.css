@@ -9,16 +9,20 @@
 
 body {
     display: flex;
-    height: 100vh;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: stretch;
 
+    height: 100vh;
     margin: 0;
     padding: 0;
+
     background-color: #121212;
+    color: white;
 
     font-family: 'mine';
     font-size: 1.5vw;
     word-spacing: 5px;
-    color: white;
 }
 
 /* Никнейм */
@@ -27,16 +31,21 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-family: inherit;
-    font-size: inherit;
+
     padding: 0.5vw 1vw;
-    border-radius: 8px;
+
     border: none;
+    border-radius: 8px;
     outline: none;
-    text-align: center;
+
     background-color: #303030;
     color: white;
+
+    text-align: center;
     line-height: 1.6;
+
+    font-family: inherit;
+    font-size: inherit;
 }
 
 /* Анимации */
@@ -62,10 +71,12 @@ body {
 
 /* Игра */
 #game {
-    padding: 2vw;
     display: flex;
+    justify-content: center;
     align-items: center;
+
     flex: 1;
+    padding: 2vw;
     overflow: hidden;
 }
 
@@ -76,15 +87,21 @@ body {
 }
 
 .card {
-    width: 64px;
-    height: 64px;
+    --size: clamp(48px, 5vw, 80px);
+    width: var(--size);
+    height: var(--size);
+
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
+
     image-rendering: pixelated;
     cursor: pointer;
+
     margin: 5px;
     border: none;
+    border-radius: 0;
+
     position: relative;
 }
 
@@ -133,17 +150,22 @@ body {
 /* Подсказка */
 .card .tooltip {
     visibility: hidden;
-    width: max-content;
+
+    position: absolute;
+    left: 110%;
+    z-index: 2;
+
+    padding: 10px;
+    border-radius: 6px;
+
     background-color: black;
     color: #fff;
-    border-radius: 6px;
-    padding: 10px;
+
     white-space: nowrap;
     word-spacing: 3px;
-    position: absolute;
-    z-index: 2;
+
+    width: max-content;
     font-size: 0.75vw;
-    left: 110%;
 }
 
 .card:hover .tooltip {
@@ -155,14 +177,15 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1vw;
-    max-width: 85%;
+
     width: max-content;
+    max-width: 85%;
 }
 
 #sum {
+    margin-bottom: 1vw;
     text-align: center;
     font-size: 2vw;
-    margin-bottom: 1vw;
 }
 
 /* Игроки */
@@ -172,19 +195,19 @@ body {
     grid-template-rows: repeat(2, 1fr);
     gap: 1vw;
 
+    padding-bottom: 1vw;
+    margin: 0 auto;
+    max-width: 100%;
+
     overflow-x: auto;
     overflow-y: hidden;
 
-    padding-bottom: 1vw;
-    box-sizing: border-box;
-
     touch-action: pan-x;
+
+    box-sizing: border-box;
 
     scrollbar-width: none;
     -ms-overflow-style: none;
-
-    margin: 0 auto;
-    max-width: 100%;
 }
 
 #players::-webkit-scrollbar {
@@ -193,23 +216,28 @@ body {
 
 .player {
     scroll-snap-align: start;
+
     min-width: 20vw;
     max-width: 50vw;
     height: auto;
 
-    background-color: #282828;
-    border-radius: 1vw;
     padding: 1vw;
+    border-radius: 1vw;
+    background-color: #282828;
+    box-sizing: border-box;
+
     text-align: center;
     font-size: 1.5vw;
-
-    box-sizing: border-box;
 }
-
 
 .player[selected] {
     border: 2px solid green;
     background-color: #283528;
+}
+
+.player[next] {
+    border: 2px solid #707056;
+    background-color: #353528;
 }
 
 .player span {
@@ -224,9 +252,10 @@ body {
 .used-cards {
     display: flex;
     flex-wrap: nowrap;
-    overflow: hidden;
+    justify-content: center;
     width: 100%;
     margin-top: 0.5vw;
+    overflow: hidden;
 }
 
 .used-cards .card {
@@ -243,16 +272,21 @@ body {
 #msg-block {
     visibility: hidden;
     opacity: 0;
-    transition: opacity 0.3s ease, visibility 0s 0.3s;
+
     position: fixed;
     bottom: 5%;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(50, 50, 50, 0.9);
+
     padding: 1em 2em;
     border-radius: 8px;
-    max-width: 80vw;
+
+    background: rgba(50, 50, 50, 0.9);
+    max-width: 85vw;
+
     z-index: 10;
+
+    transition: opacity 0.3s ease, visibility 0s 0.3s;
 }
 
 #msg-block.visible {

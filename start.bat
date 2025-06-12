@@ -1,2 +1,2 @@
-call node dist/server.js
+call npm run start
 pause>nul

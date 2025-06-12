@@ -1,0 +1,17 @@
+{
+    "game": {
+        "maxPlayerNumber": 10,
+        "minSum": 12,
+        "cardsInHand": 4,
+        "cards": {
+            "0": 10,
+            "1": 10,
+            "2": 10,
+            "3": 10,
+            "4": 3,
+            "plus": 3,
+            "bin": 3,
+            "swap": 3
+        }
+    }
+}
