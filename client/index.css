@@ -25,14 +25,24 @@ body {
     word-spacing: 5px;
 }
 
+#lobby {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    flex: 1;
+    padding: 2vw;
+    overflow: hidden;
+}
+
 /* Никнейм */
-#nickname {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+#nickname,
+#start {
+    position: relative;
 
     padding: 0.5vw 1vw;
+    margin: 10px;
 
     border: none;
     border-radius: 8px;
@@ -46,6 +56,12 @@ body {
 
     font-family: inherit;
     font-size: inherit;
+}
+
+#start {
+    width: 20vw;
+
+    background-color: #3b3;
 }
 
 /* Анимации */

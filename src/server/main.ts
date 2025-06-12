@@ -16,7 +16,7 @@ import dns from 'dns';
 import https from 'https';
 
 import {
-    applyConfig,
+    applyGameConfig as applyGameConfig,
     endGame,
     handleConnect,
     handleDisconnect,
@@ -24,6 +24,7 @@ import {
     startGame,
     handleCloseServer,
     nextMove,
+    requestToStart,
 } from './game.js';
 
 const app = express();
@@ -42,10 +43,6 @@ const clients: Record<string, Client> = {};
 let clientsNumber = 0;
 
 export let closing = false;
-
-const config = JSON.parse(fs.readFileSync('config.json', 'utf-8'));
-export const ops = (config.ops || []) as string[];
-applyConfig(config);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -71,7 +68,7 @@ app.get('/cookies', (req, res) => {
         });
     }
 
-    log(`📡 ${nickname} подключается`);
+    log(`📡 ${nickname} ${ops.includes(uuid) ? '(Оператор) ' : ''}подключается`);
     log(`   ${uuid}\n`);
 
     res.status(200).send();
@@ -90,6 +87,7 @@ wss.on('connection', (ws) => {
 
         let reconnected = clients[uuid] != undefined;
         if (reconnected) clients[uuid].ws?.close();
+        else clientsNumber++;
         client = { uuid, ws, nickname };
         clients[uuid] = client;
 
@@ -106,6 +104,10 @@ wss.on('connection', (ws) => {
                 if (!type) return;
 
                 switch (type) {
+                    case 'start': {
+                        requestToStart(client.uuid);
+                        break;
+                    }
                     case 'nickname': {
                         let oldNickname = client.nickname;
                         client.nickname = data?.nickname?.trim().slice(0, 16) || client.nickname;
@@ -180,6 +182,17 @@ async function closeServer() {
     });
 }
 
+const config: any = {};
+export const ops: string[] = [];
+
+function applyConfig() {
+    Object.assign(config, JSON.parse(fs.readFileSync('config.json', 'utf-8')));
+    if (!config) return;
+    ops.length = 0;
+    ops.push(...(config.ops || []));
+    applyGameConfig(config);
+}
+
 const commands: Record<string, (args?: string) => void> = {
     start: startGame,
     stop: () => endGame(true),
@@ -192,6 +205,26 @@ const commands: Record<string, (args?: string) => void> = {
         broadcast('say', { msg: args });
     },
     cls: () => console.clear(),
+    list: () => {
+        if (!clientsNumber) {
+            warn('Нет подключений!');
+            return;
+        }
+        log('📋 Список подключений:');
+        log(' Имя              UUID                                   WS');
+        log('───────────────────────────────────────────────────────────────');
+        for (const uuid in clients) {
+            let nickname = clients[uuid].nickname;
+            if (nickname.length > 16) nickname = nickname.slice(0, 16);
+            else nickname = nickname.padEnd(16);
+            log(` ${nickname} ${uuid.padEnd(38)} ${clients[uuid]?.ws?.readyState === WebSocket.OPEN ? '✅' : '❌'}`);
+        }
+        log();
+    },
+    config: () => {
+        log('⚙️ Применение конфига');
+        applyConfig();
+    },
     memory: () => {
         pidusage(process.pid)
             .then((stat) => {
@@ -227,21 +260,19 @@ const rl = readline.createInterface({
 rl.prompt();
 
 export function log(...args: any[]) {
-    const line = rl.line;
-    const pos = rl.cursor;
+    const anyRl = rl as any;
+    const line = anyRl.line;
+    const pos = anyRl.cursor;
 
     readline.clearLine(process.stdout, 0);
     readline.cursorTo(process.stdout, 0);
-
     console.log(...args);
 
     rl.prompt(true);
 
-    rl.write(null, { ctrl: true, name: 'u' });
-    rl.write(line);
-
-    const offset = line.length - pos;
-    if (offset > 0) readline.moveCursor(process.stdout, -offset, 0);
+    anyRl.line = line;
+    anyRl.cursor = pos;
+    anyRl._refreshLine();
 }
 
 export function warn(...args: any[]) {
@@ -298,7 +329,7 @@ async function logReverseDNS() {
     try {
         const ip = await getPublicIP();
         dns.reverse(ip, (err, hostnames) => {
-            if (err) error(`Обратный DNS не найден для ${ip}`);
+            if (err) warn(`Обратный DNS не найден для ${ip}`);
             else for (const name of hostnames) log(`🌍 DNS-домен: http://${name}:${PORT}`);
         });
     } catch {

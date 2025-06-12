@@ -9,7 +9,9 @@ import pidusage from 'pidusage';
 import readline from 'readline';
 import cookieParser from 'cookie-parser';
 import fs from 'fs';
-import { applyConfig, endGame, handleConnect, handleDisconnect, handleCardUse, startGame, handleCloseServer, nextMove, } from './game.js';
+import dns from 'dns';
+import https from 'https';
+import { applyGameConfig as applyGameConfig, endGame, handleConnect, handleDisconnect, handleCardUse, startGame, handleCloseServer, nextMove, requestToStart, } from './game.js';
 const app = express();
 app.use(cookieParser());
 const server = createServer(app);
@@ -17,8 +19,6 @@ const wss = new WebSocketServer({ server });
 const clients = {};
 let clientsNumber = 0;
 export let closing = false;
-const config = JSON.parse(fs.readFileSync('config.json', 'utf-8'));
-applyConfig(config);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 app.use(express.static(path.join(__dirname, '../client')));
 app.get('/cookies', (req, res) => {
@@ -39,10 +39,9 @@ app.get('/cookies', (req, res) => {
             path: '/',
         });
     }
-    log(`✅ ${nickname} подключается`);
-    log(`   ${uuid}`);
+    log(`📡 ${nickname} подключается`);
+    log(`   ${uuid}\n`);
     res.status(200).send();
-    // res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 wss.on('connection', (ws) => {
     let client;
@@ -55,17 +54,25 @@ wss.on('connection', (ws) => {
         let reconnected = clients[uuid] != undefined;
         if (reconnected)
             clients[uuid].ws?.close();
+        else
+            clientsNumber++;
         client = { uuid, ws, nickname };
         clients[uuid] = client;
-        if (!handleConnect(client, reconnected))
+        if (!handleConnect(client, reconnected)) {
+            error(`${client.nickname} не авторизуется!\n`);
             return;
-        log(`✅ ${client.nickname} авторизуется`);
+        }
+        log(`✅ ${client.nickname} авторизуется\n`);
         ws.on('message', (rawData) => {
             try {
                 const { type, data } = JSON.parse(rawData.toString());
                 if (!type)
                     return;
                 switch (type) {
+                    case 'start': {
+                        requestToStart(client.uuid);
+                        break;
+                    }
                     case 'nickname': {
                         let oldNickname = client.nickname;
                         client.nickname = data?.nickname?.trim().slice(0, 16) || client.nickname;
@@ -101,6 +108,7 @@ wss.on('connection', (ws) => {
                 if (!clients[client.uuid]) {
                     handleDisconnect(client.uuid, code);
                     error(`${client.nickname} отключился`);
+                    clientsNumber--;
                 }
             }, 500);
     });
@@ -142,6 +150,14 @@ async function closeServer() {
         });
     });
 }
+const config = {};
+export const ops = [];
+function applyConfig() {
+    Object.assign(config, JSON.parse(fs.readFileSync('config.json', 'utf-8')));
+    ops.length = 0;
+    ops.push(...(config.ops || []));
+    applyGameConfig(config);
+}
 const commands = {
     start: startGame,
     stop: () => endGame(true),
@@ -155,6 +171,28 @@ const commands = {
         broadcast('say', { msg: args });
     },
     cls: () => console.clear(),
+    list: () => {
+        if (!clientsNumber) {
+            warn('Нет подключений!');
+            return;
+        }
+        log('📋 Список подключений:');
+        log(' Имя              UUID                                   WS');
+        log('───────────────────────────────────────────────────────────────');
+        for (const uuid in clients) {
+            let nickname = clients[uuid].nickname;
+            if (nickname.length > 16)
+                nickname = nickname.slice(0, 16);
+            else
+                nickname = nickname.padEnd(16);
+            log(` ${nickname} ${uuid.padEnd(39)} ${clients[uuid]?.ws?.readyState === WebSocket.OPEN ? '✅' : '❌'}`);
+        }
+        log();
+    },
+    config: () => {
+        log('⚙️ Применение конфига');
+        applyConfig();
+    },
     memory: () => {
         pidusage(process.pid)
             .then((stat) => {
@@ -185,17 +223,16 @@ const rl = readline.createInterface({
 });
 rl.prompt();
 export function log(...args) {
-    const line = rl.line;
-    const pos = rl.cursor;
+    const anyRl = rl;
+    const line = anyRl.line;
+    const pos = anyRl.cursor;
     readline.clearLine(process.stdout, 0);
     readline.cursorTo(process.stdout, 0);
     console.log(...args);
     rl.prompt(true);
-    rl.write(null, { ctrl: true, name: 'u' });
-    rl.write(line);
-    const offset = line.length - pos;
-    if (offset > 0)
-        readline.moveCursor(process.stdout, -offset, 0);
+    anyRl.line = line;
+    anyRl.cursor = pos;
+    anyRl._refreshLine();
 }
 export function warn(...args) {
     log('⚠️', ...args);
@@ -212,14 +249,10 @@ rl.on('line', (input) => {
         log('❓ Неизвестная команда');
 });
 process.on('SIGINT', closeServer);
-import dns from 'dns';
-import https from 'https';
 const PORT = 8080;
 server.listen(PORT, () => {
     log(`🚀 Сервер запущен на:`);
     log(`  💻 http://localhost:${PORT}`);
-    log(`  🖥️  http://${os.hostname()}:${PORT}`);
-    logReverseDNS();
     const nets = os.networkInterfaces();
     for (const name in nets) {
         for (const net of nets[name]) {
@@ -230,32 +263,30 @@ server.listen(PORT, () => {
             }
         }
     }
+    log();
+    logReverseDNS();
 });
 function getPublicIP() {
-    return new Promise((resolve, reject) => {
-        https
-            .get('https://api.ipify.org', (res) => {
-            let data = '';
-            res.on('data', (chunk) => (data += chunk));
-            res.on('end', () => resolve(data.trim()));
-        })
-            .on('error', reject);
-    });
+    return new Promise((resolve, reject) => https
+        .get('https://api.ipify.org', (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => resolve(data.trim()));
+    })
+        .on('error', reject));
 }
 async function logReverseDNS() {
     try {
         const ip = await getPublicIP();
         dns.reverse(ip, (err, hostnames) => {
-            if (err) {
-                log(`❌ Обратный DNS не найден для ${ip}`);
-            }
-            else {
+            if (err)
+                warn(`Обратный DNS не найден для ${ip}`);
+            else
                 for (const name of hostnames)
                     log(`🌍 DNS-домен: http://${name}:${PORT}`);
-            }
         });
     }
-    catch (e) {
-        log(`❌ Не удалось получить внешний IP`);
+    catch {
+        error(`Не удалось получить внешний IP`);
     }
 }

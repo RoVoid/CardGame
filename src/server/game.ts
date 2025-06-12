@@ -40,7 +40,7 @@ let moveIndex = -1;
 
 let cardsInHand = 4;
 
-export function applyConfig(config: any) {
+export function applyGameConfig(config: any) {
     const { maxPlayerNumber: _maxPlayerNumber, minSum: _minSum, cardsInHand: _cardsInHand } = config.game;
     if (_maxPlayerNumber && _maxPlayerNumber > 1) maxPlayerNumber = _maxPlayerNumber;
     if (_minSum && _minSum > 1) minSum = _minSum;
@@ -148,6 +148,10 @@ export function handleDisconnect(uuid: string, code: number) {
         if (players.length <= 1) endGame(true);
         else broadcast('move', { index: moveIndex, skip: true });
     }
+}
+
+export function requestToStart(uuid: string) {
+    if (ops.includes(uuid)) startGame();
 }
 
 export function startGame() {

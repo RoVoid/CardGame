@@ -22,11 +22,15 @@ const endAudio = new Audio('./assets/end.mp3');
 const moveAudio = new Audio('./assets/move.mp3');
 function unlockAudio() {
     moveAudio.muted = true;
-    moveAudio.play().catch(() => { });
-    moveAudio.muted = false;
+    moveAudio.play().finally(() => {
+        moveAudio.pause();
+        moveAudio.currentTime = 0;
+        moveAudio.muted = false;
+    });
     document.removeEventListener('click', unlockAudio);
 }
 document.addEventListener('click', unlockAudio);
+const lobbyElement = document.getElementById('lobby');
 const gameElement = document.getElementById('game');
 const playersElement = document.getElementById('players');
 playersElement.addEventListener('wheel', (e) => {
@@ -58,9 +62,19 @@ ws.addEventListener('message', (event) => {
     try {
         const { type, data } = JSON.parse(event.data);
         switch (type) {
+            case 'op': {
+                const startButton = document.getElementById('start');
+                if (startButton.style.display !== 'none')
+                    return;
+                startButton.style.display = '';
+                startButton.addEventListener('click', () => {
+                    send('start');
+                });
+                break;
+            }
             case 'nickname': {
                 let filteredNickname = data.nickname || myNickname;
-                if (nicknameInput.style.display !== 'none') {
+                if (lobbyElement.style.display !== 'none') {
                     nicknameInput.placeholder = nicknameInput.value = filteredNickname;
                     nicknameInput.style.animation = 'none';
                     nicknameInput.offsetHeight;
@@ -78,8 +92,6 @@ ws.addEventListener('message', (event) => {
             case 'cards': {
                 if (data.cards !== undefined)
                     cards = data.cards;
-                nicknameInput.style.display = 'none';
-                gameElement.style.display = '';
                 renderHand();
                 break;
             }
@@ -89,7 +101,7 @@ ws.addEventListener('message', (event) => {
                 break;
             }
             case 'start': {
-                nicknameInput.style.display = 'none';
+                lobbyElement.style.display = 'none';
                 gameElement.style.display = '';
                 sumLimit = data.sumLimit;
                 players = data.players;
@@ -141,7 +153,7 @@ ws.addEventListener('message', (event) => {
                 setTimeout(() => {
                     nicknameInput.placeholder = myNickname;
                     nicknameInput.value = '';
-                    nicknameInput.style.display = '';
+                    lobbyElement.style.display = '';
                     gameElement.style.display = 'none';
                 }, showMessage(data ? (data.uuid === myUuid ? `😭 Игра окончена! Вы проигрываете! 💔` : `🎉 Игра окончена! ${data.nickname} проигрывает! 😎👌🔥`) : '🛑 Игра отменена!') + 1000);
                 if (data)
@@ -166,15 +178,15 @@ ws.addEventListener('close', (event) => {
     if (code >= 1000 && code <= 1002) {
         const reason = ['❌ Сервер завершил работу!', '🛑 Игра уже началась!', '🚫 Нет мест!'][code - 1000];
         if (gameElement.style.display !== 'none') {
-            nicknameInput.style.display = 'none';
+            lobbyElement.style.display = 'none';
             gameElement.style.display = 'none';
             showMessage(reason);
         }
         else
             setTimeout(() => {
-                nicknameInput.style.display = 'none';
+                lobbyElement.style.display = 'none';
                 gameElement.style.display = 'none';
-            }, showMessage(reason) + 2500);
+            }, showMessage(reason) + 1000);
     }
     console.log('🔴 Соединение закрыто');
 });

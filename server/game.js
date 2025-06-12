@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { closing, getClients, log, sendToUuid } from './main.js';
+import { closing, getClients, log, ops, sendToUuid } from './main.js';
 const players = [];
 const cardsTemplate = {
     '0': 10,
@@ -20,7 +20,7 @@ let sum = 0;
 let startIndex = -1;
 let moveIndex = -1;
 let cardsInHand = 4;
-export function applyConfig(config) {
+export function applyGameConfig(config) {
     const { maxPlayerNumber: _maxPlayerNumber, minSum: _minSum, cardsInHand: _cardsInHand } = config.game;
     if (_maxPlayerNumber && _maxPlayerNumber > 1)
         maxPlayerNumber = _maxPlayerNumber;
@@ -72,16 +72,16 @@ export function handleCardUse(uuid, cardType, targetIndex) {
 //     if (index > -1) broadcast('nickname', { index, nickname });
 // }
 export function handleConnect(client, reconnected) {
-    let index = reconnected ? players.findIndex((pl) => pl.uuid === client.uuid) : players.length;
+    const index = reconnected ? players.findIndex((pl) => pl.uuid === client.uuid) : players.length;
     if (isGameRunning && index === players.length) {
         client.ws.close(1001); // Игра уже идёт
         return false;
     }
-    if (maxPlayerNumber <= players.length) {
+    if (players.length >= maxPlayerNumber) {
         client.ws.close(1002); // Максимальное число игроков
         return false;
     }
-    if (reconnected) {
+    if (isGameRunning && reconnected) {
         sendToUuid(client.uuid, 'start', {
             sumLimit,
             players: players.map((pl) => ({
@@ -91,11 +91,20 @@ export function handleConnect(client, reconnected) {
                 sum: pl.sum,
             })),
         });
+        sendToUuid(client.uuid, 'index', { index });
         sendToUuid(client.uuid, 'move', { index: moveIndex, skip: false });
     }
     else {
-        players.push({ uuid: client.uuid, index, cards: [], usedCards: [], sum: 0 });
+        players.push({
+            uuid: client.uuid,
+            index,
+            cards: [],
+            usedCards: [],
+            sum: 0,
+        });
     }
+    if (ops.includes(client.uuid))
+        sendToUuid(client.uuid, 'op');
     return true;
 }
 export function handleDisconnect(uuid, code) {
@@ -107,7 +116,13 @@ export function handleDisconnect(uuid, code) {
         broadcast('playerLeft', { index });
         if (players.length <= 1)
             endGame(true);
+        else
+            broadcast('move', { index: moveIndex, skip: true });
     }
+}
+export function requestToStart(uuid) {
+    if (ops.includes(uuid))
+        startGame();
 }
 export function startGame() {
     if (players.length < 2)
