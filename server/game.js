@@ -1,6 +1,5 @@
 import { WebSocket } from 'ws';
 import { closing, getClients, log, ops, sendToUuid } from './main.js';
-const players = [];
 const cardsTemplate = {
     '0': 10,
     '1': 10,
@@ -11,74 +10,35 @@ const cardsTemplate = {
     bin: 3,
     swap: 3,
 };
+const players = [];
 let maxPlayerNumber = 10;
 let minSum = 12;
+let cardsInHand = 4;
 let sumLimit = 12;
 let isGameRunning = false;
 let cards = [];
 let sum = 0;
 let startIndex = -1;
 let moveIndex = -1;
-let cardsInHand = 4;
+/* === Конфигурация === */
 export function applyGameConfig(config) {
-    const { maxPlayerNumber: _maxPlayerNumber, minSum: _minSum, cardsInHand: _cardsInHand } = config.game;
-    if (_maxPlayerNumber && _maxPlayerNumber > 1)
-        maxPlayerNumber = _maxPlayerNumber;
-    if (_minSum && _minSum > 1)
-        minSum = _minSum;
-    if (_cardsInHand && cardsInHand > 3)
-        cardsInHand = _cardsInHand;
+    const { maxPlayerNumber: _max, minSum: _min, cardsInHand: _hand } = config.game;
+    if (_max && _max > 1)
+        maxPlayerNumber = _max;
+    if (_min && _min > 1)
+        minSum = _min;
+    if (_hand && _hand > 3)
+        cardsInHand = _hand;
 }
-export function handleCardUse(uuid, cardType, targetIndex) {
-    if (!cardType || targetIndex < 0 || targetIndex >= players.length)
-        return;
-    const movedPlayer = players[moveIndex];
-    if (!isGameRunning || !movedPlayer || movedPlayer.uuid !== uuid)
-        return;
-    if (!movedPlayer.cards.includes(cardType))
-        return;
-    const target = players[targetIndex];
-    if (!target)
-        return;
-    const isNumber = ['0', '1', '2', '3', '4'].includes(cardType);
-    if ((isNumber && target.uuid !== movedPlayer.uuid) ||
-        (cardType !== 'bin' && target.cards.length === 0) ||
-        (cardType === 'bin' && target.usedCards.length === 0))
-        return;
-    movedPlayer.usedCards.push(cardType);
-    movedPlayer.cards.splice(movedPlayer.cards.indexOf(cardType), 1);
-    log(`🎴 ${getClient(movedPlayer).nickname} использует '${cardType}' ${targetIndex !== moveIndex ? `на ${getClient(target).nickname}` : ''}`);
-    if (isNumber) {
-        const v = parseInt(cardType);
-        sum += v;
-        movedPlayer.sum += v;
-    }
-    else
-        handleSpecialCard(cardType, movedPlayer, target);
-    sendToUuid(movedPlayer.uuid, 'cards', { cards: movedPlayer.cards });
-    broadcast('player', {
-        index: moveIndex,
-        sum: movedPlayer.sum,
-        cardsNumber: movedPlayer.cards.length,
-        usedCards: movedPlayer.usedCards,
-    });
-    if (sum > sumLimit)
-        return endGame();
-    nextMove();
-}
-// export function changeNickname(uuid: string, nickname: string) {
-//     if (!isGameRunning) return;
-//     let index = players.findIndex((pl) => pl.uuid === uuid);
-//     if (index > -1) broadcast('nickname', { index, nickname });
-// }
+/* === Подключение игроков === */
 export function handleConnect(client, reconnected) {
     const index = reconnected ? players.findIndex((pl) => pl.uuid === client.uuid) : players.length;
     if (isGameRunning && index === players.length) {
-        client.ws.close(1001); // Игра уже идёт
+        client.ws.close(1001);
         return false;
     }
     if (players.length >= maxPlayerNumber) {
-        client.ws.close(1002); // Максимальное число игроков
+        client.ws.close(1002);
         return false;
     }
     if (isGameRunning && reconnected) {
@@ -108,7 +68,7 @@ export function handleConnect(client, reconnected) {
     return true;
 }
 export function handleDisconnect(uuid, code) {
-    let index = players.findIndex((pl) => pl.uuid === uuid);
+    const index = players.findIndex((pl) => pl.uuid === uuid);
     if (index < 0)
         return;
     players.splice(index, 1);
@@ -120,10 +80,12 @@ export function handleDisconnect(uuid, code) {
             broadcast('move', { index: moveIndex, skip: true });
     }
 }
+/* === Запрос на старт от оператора === */
 export function requestToStart(uuid) {
     if (ops.includes(uuid))
         startGame();
 }
+/* === Старт и завершение игры === */
 export function startGame() {
     if (players.length < 2)
         return log('👥 Недостаточно игроков');
@@ -165,12 +127,14 @@ export function endGame(force = false) {
         log(`🏁 Игра окончена! Проиграл ${client.nickname}\n`);
     }
 }
+/* === Следующий ход === */
 export function nextMove(skip = false) {
     if (!isGameRunning)
         return;
     moveIndex = (moveIndex + 1) % players.length;
     broadcast('move', { index: moveIndex, skip });
-    if (players[moveIndex].cards.length === 0) {
+    const current = players[moveIndex];
+    if (current.cards.length === 0) {
         if (cards.length === 0)
             shuffleCards();
         for (const [i, player] of players.entries()) {
@@ -188,15 +152,48 @@ export function nextMove(skip = false) {
             });
         }
     }
-    log(`🎮 Ход игрока: ${getClient(players[moveIndex]).nickname}`);
+    log(`🎮 Ход игрока: ${getClient(current).nickname}`);
 }
-function getClient(player) {
-    return getClients().clients[player.uuid];
+/* === Обработка карт === */
+export function handleCardUse(uuid, cardType, targetIndex) {
+    if (!cardType || targetIndex < 0 || targetIndex >= players.length)
+        return;
+    const movedPlayer = players[moveIndex];
+    if (!isGameRunning || !movedPlayer || movedPlayer.uuid !== uuid)
+        return;
+    if (!movedPlayer.cards.includes(cardType))
+        return;
+    const target = players[targetIndex];
+    if (!target)
+        return;
+    const isNumber = ['0', '1', '2', '3', '4'].includes(cardType);
+    if ((isNumber && target.uuid !== movedPlayer.uuid) ||
+        (cardType !== 'bin' && target.cards.length === 0) ||
+        (cardType === 'bin' && target.usedCards.length === 0))
+        return;
+    movedPlayer.usedCards.push(cardType);
+    movedPlayer.cards.splice(movedPlayer.cards.indexOf(cardType), 1);
+    log(`🎴 ${getClient(movedPlayer).nickname} использует '${cardType}' ${targetIndex !== moveIndex ? `на ${getClient(target).nickname}` : ''}`);
+    if (isNumber) {
+        const v = parseInt(cardType);
+        sum += v;
+        movedPlayer.sum += v;
+    }
+    else {
+        handleSpecialCard(cardType, movedPlayer, target);
+    }
+    sendToUuid(movedPlayer.uuid, 'cards', { cards: movedPlayer.cards });
+    broadcast('player', {
+        index: moveIndex,
+        sum: movedPlayer.sum,
+        cardsNumber: movedPlayer.cards.length,
+        usedCards: movedPlayer.usedCards,
+    });
+    if (sum > sumLimit)
+        return endGame();
+    nextMove();
 }
-function broadcast(type, data) {
-    for (const player of players)
-        sendToUuid(player.uuid, type, data);
-}
+/* === Обработка спецкарт === */
 function handleSpecialCard(card, from, to) {
     if (card === 'plus') {
         sum++;
@@ -225,21 +222,32 @@ function handleSpecialCard(card, from, to) {
     else if (card === 'swap') {
         if (from.uuid !== to.uuid) {
             [from.cards, to.cards] = [to.cards, from.cards];
-            // if (to.cards.length < from.cards.length) to.cards.push('0');
             sendToUuid(to.uuid, 'cards', { cards: to.cards });
         }
     }
 }
+/* === Вспомогательные функции === */
 function shuffleCards() {
     cards = [];
-    for (const type in cardsTemplate)
-        for (let i = 0; i < cardsTemplate[type]; i++)
+    for (const type in cardsTemplate) {
+        for (let i = 0; i < cardsTemplate[type]; i++) {
             cards.push(type);
+        }
+    }
     for (let i = cards.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [cards[i], cards[j]] = [cards[j], cards[i]];
     }
 }
+function getClient(player) {
+    return getClients().clients[player.uuid];
+}
+function broadcast(type, data) {
+    for (const player of players) {
+        sendToUuid(player.uuid, type, data);
+    }
+}
+/* === Завершение сервера === */
 export async function handleCloseServer() {
     if (isGameRunning)
         endGame(true);

@@ -1,3 +1,4 @@
+// === 📦 Импорты ===
 import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -11,47 +12,40 @@ import cookieParser from 'cookie-parser';
 import fs from 'fs';
 import dns from 'dns';
 import https from 'https';
-import { applyGameConfig as applyGameConfig, endGame, handleConnect, handleDisconnect, handleCardUse, startGame, handleCloseServer, nextMove, requestToStart, } from './game.js';
+import { applyGameConfig, endGame, handleConnect, handleDisconnect, handleCardUse, startGame, handleCloseServer, nextMove, requestToStart, } from './game.js';
+// === ⚙️ Настройка Express и WebSocket ===
 const app = express();
 app.use(cookieParser());
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+app.use(express.static(path.join(__dirname, '../client')));
 const clients = {};
 let clientsNumber = 0;
 export let closing = false;
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-app.use(express.static(path.join(__dirname, '../client')));
+// === 🍪 Обработка /cookies ===
 app.get('/cookies', (req, res) => {
     let { uuid, nickname } = req.cookies;
     if (!uuid) {
         uuid = randomUUID();
-        res.cookie('uuid', uuid, {
-            httpOnly: false,
-            sameSite: 'lax',
-            path: '/',
-        });
+        res.cookie('uuid', uuid, { httpOnly: false, sameSite: 'lax', path: '/' });
     }
     if (!nickname) {
         nickname = 'Игрок ' + clientsNumber;
-        res.cookie('nickname', nickname, {
-            httpOnly: false,
-            sameSite: 'lax',
-            path: '/',
-        });
+        res.cookie('nickname', nickname, { httpOnly: false, sameSite: 'lax', path: '/' });
     }
-    log(`📡 ${nickname} подключается`);
+    log(`📡 ${nickname} ${ops.includes(uuid) ? '(Оператор) ' : ''}подключается`);
     log(`   ${uuid}\n`);
     res.status(200).send();
 });
+// === 🔌 Обработка WebSocket-соединений ===
 wss.on('connection', (ws) => {
     let client;
     ws.once('message', (data) => {
         const { uuid, nickname } = JSON.parse(data.toString());
-        if (!uuid || !nickname) {
-            ws.close();
-            return;
-        }
-        let reconnected = clients[uuid] != undefined;
+        if (!uuid || !nickname)
+            return ws.close();
+        const reconnected = clients[uuid] != undefined;
         if (reconnected)
             clients[uuid].ws?.close();
         else
@@ -69,27 +63,22 @@ wss.on('connection', (ws) => {
                 if (!type)
                     return;
                 switch (type) {
-                    case 'start': {
+                    case 'start':
                         requestToStart(client.uuid);
                         break;
-                    }
                     case 'nickname': {
-                        let oldNickname = client.nickname;
+                        const oldNickname = client.nickname;
                         client.nickname = data?.nickname?.trim().slice(0, 16) || client.nickname;
                         if (oldNickname !== client.nickname)
                             log(`✏️ ${oldNickname} переименуется в ${client.nickname}`);
-                        sendTo(type, { nickname: client.nickname });
-                        //changeNickname(client.uuid, client.nickname);
+                        send(ws, type, { nickname: client.nickname });
                         break;
                     }
-                    case 'use': {
+                    case 'use':
                         handleCardUse(client.uuid, data?.cardType, data?.targetIndex);
                         break;
-                    }
-                    default: {
+                    default:
                         warn(`Неизвестное сообщение от ${client.nickname}: (${type})\n${JSON.stringify(data)}`);
-                        break;
-                    }
                 }
             }
             catch (e) {
@@ -116,6 +105,7 @@ wss.on('connection', (ws) => {
         send(ws, type, data);
     }
 });
+// === 📡 Коммуникация ===
 function send(ws, type, data) {
     if (ws.readyState === WebSocket.OPEN)
         ws.send(JSON.stringify({ type, data }));
@@ -132,6 +122,7 @@ function broadcast(type, data) {
 export function getClients() {
     return { clients, clientsNumber };
 }
+// === ⛔ Завершение сервера ===
 async function closeServer() {
     closing = true;
     await handleCloseServer();
@@ -150,14 +141,45 @@ async function closeServer() {
         });
     });
 }
+// === ⚙️ Конфигурация ===
 const config = {};
 export const ops = [];
 function applyConfig() {
+    if (!fs.existsSync('config.json')) {
+        const template = {
+            saveClose: true,
+            showDns: false,
+            ops: [],
+            game: {
+                maxPlayerNumber: 10,
+                minSum: 12,
+                cardsInHand: 4,
+                cards: {
+                    '0': 10,
+                    '1': 10,
+                    '2': 10,
+                    '3': 10,
+                    '4': 3,
+                    plus: 3,
+                    bin: 3,
+                    swap: 3,
+                },
+            },
+        };
+        fs.writeFileSync('config.json', JSON.stringify(template, null, 4), 'utf-8');
+        log('📄 Создан шаблон config.json');
+    }
     Object.assign(config, JSON.parse(fs.readFileSync('config.json', 'utf-8')));
     ops.length = 0;
     ops.push(...(config.ops || []));
+    if (config.saveClose)
+        process.on('SIGINT', closeServer);
+    else
+        process.removeListener('SIGINT', closeServer);
     applyGameConfig(config);
 }
+applyConfig();
+// === 💻 CLI Команды ===
 const commands = {
     start: startGame,
     stop: () => endGame(true),
@@ -172,20 +194,15 @@ const commands = {
     },
     cls: () => console.clear(),
     list: () => {
-        if (!clientsNumber) {
-            warn('Нет подключений!');
-            return;
-        }
+        if (!clientsNumber)
+            return warn('Нет подключений!');
         log('📋 Список подключений:');
         log(' Имя              UUID                                   WS');
         log('───────────────────────────────────────────────────────────────');
         for (const uuid in clients) {
             let nickname = clients[uuid].nickname;
-            if (nickname.length > 16)
-                nickname = nickname.slice(0, 16);
-            else
-                nickname = nickname.padEnd(16);
-            log(` ${nickname} ${uuid.padEnd(39)} ${clients[uuid]?.ws?.readyState === WebSocket.OPEN ? '✅' : '❌'}`);
+            nickname = nickname.length > 16 ? nickname.slice(0, 16) : nickname.padEnd(16);
+            log(` ${nickname} ${uuid.padEnd(37)} ${clients[uuid].ws.readyState === WebSocket.OPEN ? '✅' : '❌'}`);
         }
         log();
     },
@@ -211,17 +228,25 @@ const commands = {
             log(`• 📤 Внешнее:        ${fmt(mem.external)}   — буферы, ws`);
             log(`• 📚 ArrayBuffer:    ${fmt(mem.arrayBuffers)}\n`);
         })
-            .catch((err) => {
-            error('❌ Ошибка получения ресурсов:', err);
-        });
+            .catch((err) => error('❌ Ошибка получения ресурсов:', err));
     },
 };
+// === ⌨️ Интерфейс ввода (CLI) ===
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: '🖥️>  ',
 });
 rl.prompt();
+rl.on('line', (input) => {
+    const [cmd, ...rest] = input.trim().split(' ');
+    const fn = commands[cmd];
+    if (fn)
+        fn(rest.join(' '));
+    else
+        log('❓ Неизвестная команда');
+});
+// === 📝 Логирование ===
 export function log(...args) {
     const anyRl = rl;
     const line = anyRl.line;
@@ -240,15 +265,7 @@ export function warn(...args) {
 export function error(...args) {
     log('❌', ...args);
 }
-rl.on('line', (input) => {
-    const [cmd, ...rest] = input.trim().split(' ');
-    const fn = commands[cmd];
-    if (fn)
-        fn(rest.join(' '));
-    else
-        log('❓ Неизвестная команда');
-});
-process.on('SIGINT', closeServer);
+// === 🚀 Запуск сервера ===
 const PORT = 8080;
 server.listen(PORT, () => {
     log(`🚀 Сервер запущен на:`);
@@ -263,9 +280,12 @@ server.listen(PORT, () => {
             }
         }
     }
-    log();
-    logReverseDNS();
+    if (config.showDns) {
+        log();
+        logReverseDNS();
+    }
 });
+// === 🌍 Обратный DNS ===
 function getPublicIP() {
     return new Promise((resolve, reject) => https
         .get('https://api.ipify.org', (res) => {

@@ -180,8 +180,9 @@ export const ops: string[] = [];
 function applyConfig() {
     if (!fs.existsSync('config.json')) {
         const template = {
-            ops: [],
             saveClose: true,
+            showDns: false,
+            ops: [],
             game: {
                 maxPlayerNumber: 10,
                 minSum: 12,
@@ -325,8 +326,10 @@ server.listen(PORT, () => {
         }
     }
 
-    log();
-    logReverseDNS();
+    if (config.showDns) {
+        log();
+        logReverseDNS();
+    }
 });
 
 // === 🌍 Обратный DNS ===
