@@ -1,21 +1,34 @@
 #!/bin/bash
+set -e
 
-git fetch origin
-
-local_hash=$(git rev-parse HEAD)
-remote_hash=$(git rev-parse origin/main)
-
-echo "🖥️ Локальный коммит: $local_hash"
-echo "☁️ Удалённый коммит: $remote_hash"
-
-if [[ "$local_hash" == "$remote_hash" ]]
-then
-    echo "✅ Коммиты идентичны"
+if [ ! -d ".git" ]; then
+  echo "📦 Клонирование репозитория..."
+  git clone https://github.com/RoVoid/CardGame.git .
+  echo "✅ Клонирование завершено"
+  echo "🛠️ Установка NPM-Пакетов..."
+  npm install
+  echo "✅ Установка завершена"
+  echo
 else
-    echo "⚠️ Коммиты разные"
-    echo "📦 Синхронизация..."
-    git pull
+  echo "🔄 Проверка обновлений..."
+  git fetch origin
+
+  LOCAL_COMMIT=$(git rev-parse HEAD)
+  REMOTE_COMMIT=$(git rev-parse origin/main)
+
+  echo "🖥️ Локальный коммит: $LOCAL_COMMIT"
+  echo "☁️ Удалённый коммит: $REMOTE_COMMIT"
+  echo
+
+  if ! git merge-base --is-ancestor "$REMOTE_COMMIT" "$LOCAL_COMMIT"; then
+    echo "🔄 Обновление репозитория..."
+    git pull --ff-only
+    echo "✅ Обновление завершено"
+    echo "🛠️ Установка NPM-Пакетов..."
+    npm install
     echo "✅ Установка завершена"
+    echo
+  fi
 fi
 
 echo "⏱️ Запуск игры..."
