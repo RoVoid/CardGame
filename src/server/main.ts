@@ -152,6 +152,46 @@ export function getClients() {
     return { clients, clientsNumber };
 }
 
+// === ⌨️ Интерфейс ввода (CLI) ===
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: '🖥️>  ',
+});
+rl.prompt();
+
+rl.on('line', (input) => {
+    const [cmd, ...rest] = input.trim().split(' ');
+    const fn = commands[cmd];
+    if (fn) fn(rest.join(' '));
+    else log('❓ Неизвестная команда');
+});
+
+// === 📝 Логирование ===
+export function log(...args: any[]) {
+    const anyRl = rl as any;
+    const line = anyRl.line;
+    const pos = anyRl.cursor;
+
+    readline.clearLine(process.stdout, 0);
+    readline.cursorTo(process.stdout, 0);
+    console.log(...args);
+
+    rl.prompt(true);
+
+    anyRl.line = line;
+    anyRl.cursor = pos;
+    anyRl._refreshLine();
+}
+
+export function warn(...args: any[]) {
+    log('⚠️', ...args);
+}
+
+export function error(...args: any[]) {
+    log('❌', ...args);
+}
+
 // === ⛔ Завершение сервера ===
 async function closeServer() {
     closing = true;
@@ -329,46 +369,6 @@ const commands: Record<string, (args?: string) => void> = {
             .catch((err) => error('❌ Ошибка получения ресурсов:', err));
     },
 };
-
-// === ⌨️ Интерфейс ввода (CLI) ===
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: '🖥️>  ',
-});
-rl.prompt();
-
-rl.on('line', (input) => {
-    const [cmd, ...rest] = input.trim().split(' ');
-    const fn = commands[cmd];
-    if (fn) fn(rest.join(' '));
-    else log('❓ Неизвестная команда');
-});
-
-// === 📝 Логирование ===
-export function log(...args: any[]) {
-    const anyRl = rl as any;
-    const line = anyRl.line;
-    const pos = anyRl.cursor;
-
-    readline.clearLine(process.stdout, 0);
-    readline.cursorTo(process.stdout, 0);
-    console.log(...args);
-
-    rl.prompt(true);
-
-    anyRl.line = line;
-    anyRl.cursor = pos;
-    anyRl._refreshLine();
-}
-
-export function warn(...args: any[]) {
-    log('⚠️', ...args);
-}
-
-export function error(...args: any[]) {
-    log('❌', ...args);
-}
 
 // === 🚀 Запуск сервера ===
 let PORT = -1;
