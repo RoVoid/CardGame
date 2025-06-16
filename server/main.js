@@ -34,7 +34,7 @@ app.get('/cookies', (req, res) => {
         nickname = 'Игрок ' + clientsNumber;
         res.cookie('nickname', nickname, { httpOnly: false, sameSite: 'lax', path: '/' });
     }
-    log(`📡 ${nickname} ${ops.includes(uuid) ? '(Оператор) ' : ''}подключается`);
+    log(`📡 ${nickname} ${ops.has(uuid) ? '(Оператор) ' : ''}подключается`);
     log(`   ${uuid}\n`);
     res.status(200).send();
 });
@@ -57,6 +57,8 @@ wss.on('connection', (ws) => {
             return;
         }
         log(`✅ ${client.nickname} авторизуется\n`);
+        if (ops.has(uuid))
+            send(ws, 'op', { op: true });
         ws.on('message', (rawData) => {
             try {
                 const { type, data } = JSON.parse(rawData.toString());
@@ -101,9 +103,6 @@ wss.on('connection', (ws) => {
                 }
             }, 500);
     });
-    function sendTo(type, data) {
-        send(ws, type, data);
-    }
 });
 // === 📡 Коммуникация ===
 function send(ws, type, data) {
@@ -142,45 +141,83 @@ async function closeServer() {
     });
 }
 // === ⚙️ Конфигурация ===
-const config = {};
-export const ops = [];
+const config = {
+    saveClose: true,
+    showDns: false,
+    game: {
+        maxPlayerNumber: 10,
+        minSum: 12,
+        cardsInHand: 4,
+        cards: {
+            '0': 10,
+            '1': 10,
+            '2': 10,
+            '3': 10,
+            '4': 3,
+            plus: 3,
+            bin: 3,
+            swap: 3,
+        },
+    },
+};
+let hasOpFile = fs.existsSync('ops.txt');
+export const ops = new Set(hasOpFile ? fs.readFileSync('ops.txt', 'utf-8').trim().split(/\s+/) : []);
+if (!hasOpFile)
+    fs.writeFileSync('ops.txt', '', 'utf-8');
 function applyConfig() {
     if (!fs.existsSync('config.json')) {
-        const template = {
-            saveClose: true,
-            showDns: false,
-            ops: [],
-            game: {
-                maxPlayerNumber: 10,
-                minSum: 12,
-                cardsInHand: 4,
-                cards: {
-                    '0': 10,
-                    '1': 10,
-                    '2': 10,
-                    '3': 10,
-                    '4': 3,
-                    plus: 3,
-                    bin: 3,
-                    swap: 3,
-                },
-            },
-        };
-        fs.writeFileSync('config.json', JSON.stringify(template, null, 4), 'utf-8');
+        fs.writeFileSync('config.json', JSON.stringify(config, null, 4), 'utf-8');
         log('📄 Создан шаблон config.json');
     }
-    Object.assign(config, JSON.parse(fs.readFileSync('config.json', 'utf-8')));
-    ops.length = 0;
-    ops.push(...(config.ops || []));
+    else
+        merge(config, JSON.parse(fs.readFileSync('config.json', 'utf-8')));
     if (config.saveClose)
         process.on('SIGINT', closeServer);
     else
         process.removeListener('SIGINT', closeServer);
     applyGameConfig(config);
 }
+function merge(target, source) {
+    for (const key of Object.keys(target)) {
+        if (!(key in source))
+            continue;
+        const val = source[key];
+        const orig = target[key];
+        if (val == undefined || typeof orig !== typeof val)
+            continue;
+        if (typeof orig === 'object')
+            merge(orig, val);
+        else
+            target[key] = val;
+    }
+}
 applyConfig();
 // === 💻 CLI Команды ===
 const commands = {
+    help: () => {
+        const descriptions = {
+            start: '▶️ Начать игру',
+            stop: '⏹️ Остановить игру',
+            skip: '⏭️ Пропустить ход',
+            exit: '❎ Завершить сервер',
+            termite: '💀 Аварийное завершение',
+            say: '💬 Отправить сообщение игрокам',
+            cls: '🧹 Очистить консоль',
+            list: '📋 Показать список подключений',
+            config: '⚙️ Обновить конфигурацию',
+            op: '🛡️ Сделать игрока оператором',
+            deop: '🚫 Убрать оператора',
+            memory: '📟 Показать использование памяти и ресурсов',
+        };
+        log('\n📖 Доступные команды:');
+        for (const command of Object.keys(commands)) {
+            if (command === 'help')
+                continue;
+            const desc = descriptions[command] || '—';
+            log(`> ${command.padEnd(10)} ${desc}`);
+        }
+        log();
+    },
     start: startGame,
     stop: () => endGame(true),
     skip: () => nextMove(true),
@@ -197,18 +234,49 @@ const commands = {
         if (!clientsNumber)
             return warn('Нет подключений!');
         log('📋 Список подключений:');
-        log(' Имя              UUID                                   WS');
+        log('   Имя              UUID                                   WS');
         log('───────────────────────────────────────────────────────────────');
         for (const uuid in clients) {
             let nickname = clients[uuid].nickname;
             nickname = nickname.length > 16 ? nickname.slice(0, 16) : nickname.padEnd(16);
-            log(` ${nickname} ${uuid.padEnd(37)} ${clients[uuid].ws.readyState === WebSocket.OPEN ? '✅' : '❌'}`);
+            log(`${ops.has(uuid) ? '🛡️' : '🙂'} ${nickname} ${uuid.padEnd(38)} ${clients[uuid].ws.readyState === WebSocket.OPEN ? '✅' : '❌'}`);
         }
         log();
     },
     config: () => {
         log('⚙️ Применение конфига');
         applyConfig();
+    },
+    op: (arg) => {
+        const uuid = arg?.trim();
+        if (!uuid)
+            return log('🚫 Пустое UUID!');
+        if (ops.has(uuid))
+            return log('⛔ Уже оператор!');
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uuid))
+            return log('❌ Неверный UUID!');
+        ops.add(uuid);
+        fs.writeFileSync('ops.txt', [...ops].join(' '), 'utf-8');
+        sendToUuid(uuid, 'op', { op: true });
+        log('✅ Добавлен оператор');
+    },
+    deop: (arg) => {
+        const uuid = arg?.trim();
+        if (!uuid)
+            return log('🚫 Пустое UUID!');
+        if (!ops.has(uuid))
+            return log('⛔ Уже не оператор!');
+        ops.delete(uuid);
+        fs.writeFileSync('ops.txt', [...ops].join(' '), 'utf-8');
+        sendToUuid(uuid, 'op', { op: false });
+        log('✅ Убран оператор');
+    },
+    oplist: () => {
+        if (ops.size === 0)
+            return log('🛡️ Список операторов пуст');
+        log('🛡️ Список операторов:');
+        for (const uuid of ops)
+            log(`🔑 ${uuid} — ${clients[uuid]?.nickname ?? '— не в сети'}`);
     },
     memory: () => {
         pidusage(process.pid)
@@ -266,25 +334,50 @@ export function error(...args) {
     log('❌', ...args);
 }
 // === 🚀 Запуск сервера ===
-const PORT = 8080;
-server.listen(PORT, () => {
-    log(`🚀 Сервер запущен на:`);
-    log(`  💻 http://localhost:${PORT}`);
-    const nets = os.networkInterfaces();
-    for (const name in nets) {
-        for (const net of nets[name]) {
-            if (net.family === 'IPv4' && !net.internal) {
-                const addr = net.address;
-                const emoji = addr.startsWith('192.') || addr.startsWith('10.') || addr.startsWith('172.') ? '🏠' : '🌐';
-                log(`  ${emoji} http://${addr}:${PORT}`);
+let PORT = -1;
+async function tryListen(port) {
+    return new Promise((resolve) => {
+        const testServer = createServer();
+        testServer.once('error', (err) => resolve(-1));
+        testServer.once('listening', () => {
+            testServer.close();
+            resolve(port);
+        });
+        testServer.listen(port);
+    });
+}
+async function findFreePort() {
+    for (let port = 8080; port <= 8999; port++)
+        if ((await tryListen(port)) !== -1)
+            return port;
+    return -1;
+}
+async function startServer() {
+    PORT = await findFreePort();
+    if (PORT === -1) {
+        console.error('❌ Нет свободного порта в диапазоне 8080–8999.');
+        process.exit(1);
+    }
+    server.listen(PORT, () => {
+        log(`🚀 Сервер запущен на:`);
+        log(`  💻 http://localhost:${PORT}`);
+        const nets = os.networkInterfaces();
+        for (const name in nets) {
+            for (const net of nets[name]) {
+                if (net.family === 'IPv4' && !net.internal) {
+                    const addr = net.address;
+                    const emoji = addr.startsWith('192.') || addr.startsWith('10.') || addr.startsWith('172.') ? '🏠' : '🌐';
+                    log(`  ${emoji} http://${addr}:${PORT}`);
+                }
             }
         }
-    }
-    if (config.showDns) {
-        log();
-        logReverseDNS();
-    }
-});
+        if (config.showDns) {
+            log();
+            logReverseDNS();
+        }
+    });
+}
+startServer();
 // === 🌍 Обратный DNS ===
 function getPublicIP() {
     return new Promise((resolve, reject) => https

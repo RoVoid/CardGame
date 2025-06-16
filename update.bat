@@ -12,9 +12,9 @@ exit
 git rev-parse --is-inside-work-tree >nul 2>&1
 if errorlevel 1 (
     echo 📦 Клонирование...
-    git clone https://github.com/RoVoid/CardGame.git temp_clone >nul
-    xcopy /e /h /y temp_clone\* . >nul
-    rd /s /q temp_clone >nul
+    git clone https://github.com/RoVoid/CardGame.git temp_clone >nul 2>&1
+    robocopy temp_clone . /e /move /np /nfl /ndl >nul 2>&1
+    rd /s /q temp_clone >nul 2>&1
     echo ✅ Клонирование завершено
     echo 🛠️ Установка NPM-Пакетов...
     npm install >nul

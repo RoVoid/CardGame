@@ -1,5 +1,6 @@
 import { WebSocket } from 'ws';
 import { closing, getClients, log, ops, sendToUuid } from './main.js';
+const allowedCardKeys = ['0', '1', '2', '3', '4', 'plus', 'bin', 'swap'];
 const cardsTemplate = {
     '0': 10,
     '1': 10,
@@ -22,13 +23,18 @@ let startIndex = -1;
 let moveIndex = -1;
 /* === Конфигурация === */
 export function applyGameConfig(config) {
-    const { maxPlayerNumber: _max, minSum: _min, cardsInHand: _hand } = config.game;
+    const { maxPlayerNumber: _max, minSum: _min, cardsInHand: _hand, cards: _cards } = config.game;
     if (_max && _max > 1)
         maxPlayerNumber = _max;
     if (_min && _min > 1)
         minSum = _min;
     if (_hand && _hand > 3)
         cardsInHand = _hand;
+    if (_cards && typeof _cards === 'object') {
+        for (const key of allowedCardKeys)
+            if (typeof _cards[key] === 'number' && _cards[key] >= 0)
+                cardsTemplate[key] = _cards[key];
+    }
 }
 /* === Подключение игроков === */
 export function handleConnect(client, reconnected) {
@@ -63,8 +69,6 @@ export function handleConnect(client, reconnected) {
             sum: 0,
         });
     }
-    if (ops.includes(client.uuid))
-        sendToUuid(client.uuid, 'op');
     return true;
 }
 export function handleDisconnect(uuid, code) {
@@ -82,7 +86,7 @@ export function handleDisconnect(uuid, code) {
 }
 /* === Запрос на старт от оператора === */
 export function requestToStart(uuid) {
-    if (ops.includes(uuid))
+    if (ops.has(uuid))
         startGame();
 }
 /* === Старт и завершение игры === */

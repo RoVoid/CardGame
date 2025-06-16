@@ -11,7 +11,6 @@ function getCookie(name: string) {
 function setCookie(name: string, value: string, days?: number) {
     const expires = days ? '; max-age=' + days * 24 * 60 * 60 : '';
     document.cookie = `${name}=${encodeURIComponent(value)}${expires}; path=/`;
-    console.log(name, value);
 }
 
 // Variables
@@ -44,6 +43,7 @@ const playersElement = document.getElementById('players')!;
 const handDiv = document.getElementById('cards')!;
 const endAudio = new Audio('./assets/end.mp3');
 const moveAudio = new Audio('./assets/move.mp3');
+const startButton = document.getElementById('start')!;
 
 // Tooltip Descriptions
 const tooltips: Record<string, string> = {
@@ -64,6 +64,7 @@ nicknameInput.addEventListener('change', function () {
     myNickname = this.value.trim();
     if (this.value) send('nickname', { nickname: myNickname });
 });
+startButton.addEventListener('click', () => send('start'));
 
 playersElement.addEventListener(
     'wheel',
@@ -104,10 +105,7 @@ ws.addEventListener('message', (event) => {
         const { type, data } = JSON.parse(event.data) as { type: string; data: any };
         switch (type) {
             case 'op':
-                const startButton = document.getElementById('start')!;
-                if (startButton.style.display !== 'none') return;
-                startButton.style.display = '';
-                startButton.addEventListener('click', () => send('start'));
+                startButton.style.display = data.op ? '' : 'none';
                 break;
 
             case 'nickname':

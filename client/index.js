@@ -7,7 +7,6 @@ function getCookie(name) {
 function setCookie(name, value, days) {
     const expires = days ? '; max-age=' + days * 24 * 60 * 60 : '';
     document.cookie = `${name}=${encodeURIComponent(value)}${expires}; path=/`;
-    console.log(name, value);
 }
 // Variables
 let myUuid = getCookie('uuid');
@@ -29,6 +28,7 @@ const playersElement = document.getElementById('players');
 const handDiv = document.getElementById('cards');
 const endAudio = new Audio('./assets/end.mp3');
 const moveAudio = new Audio('./assets/move.mp3');
+const startButton = document.getElementById('start');
 // Tooltip Descriptions
 const tooltips = {
     '0': 'Карточка с суммой = 0',
@@ -48,6 +48,7 @@ nicknameInput.addEventListener('change', function () {
     if (this.value)
         send('nickname', { nickname: myNickname });
 });
+startButton.addEventListener('click', () => send('start'));
 playersElement.addEventListener('wheel', (e) => {
     if (e.deltaY !== 0) {
         e.preventDefault();
@@ -78,11 +79,7 @@ ws.addEventListener('message', (event) => {
         const { type, data } = JSON.parse(event.data);
         switch (type) {
             case 'op':
-                const startButton = document.getElementById('start');
-                if (startButton.style.display !== 'none')
-                    return;
-                startButton.style.display = '';
-                startButton.addEventListener('click', () => send('start'));
+                startButton.style.display = data.op ? '' : 'none';
                 break;
             case 'nickname':
                 const filtered = data.nickname || myNickname;

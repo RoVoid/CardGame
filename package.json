@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A simple browser multiplayer game using WebSockets and TypeScript.",
   "main": "dist/server/main.js",
+  "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json",
     "start": "node server/main.js",
@@ -11,6 +12,7 @@
   "dependencies": {
     "cookie-parser": "^1.4.7",
     "express": "^5.1.0",
+    "pidusage": "^4.0.1",
     "ws": "^8.18.2"
   },
   "devDependencies": {
@@ -19,10 +21,8 @@
     "@types/node": "^20.19.0",
     "@types/pidusage": "^2.0.5",
     "@types/ws": "^8.18.1",
-    "pidusage": "^4.0.1",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
   },
-  "author": "RoVoid",
-  "type": "module"
+  "author": "RoVoid"
 }
