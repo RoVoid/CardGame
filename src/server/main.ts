@@ -238,7 +238,6 @@ if (!hasOpFile) fs.writeFileSync('ops.txt', '', 'utf-8');
 function applyConfig() {
     if (!fs.existsSync('config.json')) {
         fs.writeFileSync('config.json', JSON.stringify(config, null, 4), 'utf-8');
-        log('📄 Создан шаблон config.json');
     } else merge(config, JSON.parse(fs.readFileSync('config.json', 'utf-8')));
 
     if (config.saveClose) process.on('SIGINT', closeServer);
