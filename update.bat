@@ -16,9 +16,12 @@ if errorlevel 1 (
     robocopy temp_clone . /e /move /np /nfl /ndl >nul 2>&1
     rd /s /q temp_clone >nul 2>&1
     echo ✅ Клонирование завершено
-    echo 🛠️ Установка NPM-Пакетов...
+    echo 🗃️ Установка NPM-Пакетов...
     npm install >nul
     echo ✅ Установка завершена
+    echo 🛠️ Сборка JS...
+    npm run build >nul
+    echo ✅ Сборка завершена
     echo:
     goto launch
 )
@@ -38,9 +41,11 @@ if errorlevel 1 (
     if errorlevel 1 (
         echo ⚠️ Синхронизация не удалась!
         echo:
-    )
-    else (
+    ) else (
         echo ✅ Синхронизация завершена
+        echo 🛠️ Сборка JS...
+        npm run build >nul
+        echo ✅ Сборка завершена
         echo:
     )
 )

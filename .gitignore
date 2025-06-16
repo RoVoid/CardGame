@@ -1,5 +1,7 @@
-/node_modules
-config.json
 launch.bat
-ops.txt
+/node_modules
 package-lock.json
+config.json
+ops.txt
+*.js
+server
