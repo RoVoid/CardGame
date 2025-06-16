@@ -91,12 +91,12 @@ wss.on('connection', (ws) => {
             return;
         delete clients[client.uuid];
         if (closing)
-            error(`${client.nickname} отключился`);
+            error(`${client.nickname} отключается`);
         else
             setTimeout(() => {
                 if (!clients[client.uuid]) {
                     handleDisconnect(client.uuid, code);
-                    error(`${client.nickname} отключился`);
+                    error(`${client.nickname} отключается`);
                     clientsNumber--;
                 }
             }, 500);

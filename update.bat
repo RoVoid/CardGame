@@ -34,8 +34,6 @@ echo:
 git merge-base --is-ancestor !REMOTE_COMMIT! !LOCAL_COMMIT! >nul 2>&1
 if errorlevel 1 (
     echo 🔄 Обновление...
-    git reset --hard
-    git clean -fd
     git pull >nul
     echo ✅ Синхронизация завершена
     echo:
