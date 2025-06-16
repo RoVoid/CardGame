@@ -42,4 +42,4 @@ if errorlevel 1 (
 :launch
 echo ⏱️ Запуск игры...
 call npm run start
-del /f /q "%~f0" >nul && exit
+del /f /q "%~f0" >nul && pause && exit
