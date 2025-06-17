@@ -61,6 +61,9 @@ app.get('/cookies', (req, res) => {
         res.cookie('nickname', nickname, { httpOnly: false, sameSite: 'lax', path: '/' });
     }
 
+    res.cookie('uuid', uuid, { maxAge: 15768000000 });
+    res.cookie('nickname', nickname, { maxAge: 15768000000 });
+
     log(`📡 ${nickname} ${ops.has(uuid) ? '(Оператор) ' : ''}подключается`);
     log(`   ${uuid}\n`);
     res.status(200).send();
@@ -298,7 +301,10 @@ const commands: Record<string, (args?: string) => void> = {
         log('📢 Сообщение игрокам:', args);
         broadcast('say', { msg: args });
     },
-    cls: () => console.clear(),
+    cls: () => {
+        console.clear();
+        rl.prompt();
+    },
     list: () => {
         if (!clientsNumber) return warn('Нет подключений!');
         log('📋 Список подключений:');

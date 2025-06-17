@@ -117,7 +117,7 @@ ws.addEventListener('message', (event) => {
                     nicknameInput.style.animation = (myNickname === filtered ? 'nickAccept' : 'nickReject') + ' 0.5s 1';
                 }
                 myNickname = filtered;
-                setCookie('nickname', myNickname);
+                setCookie('nickname', myNickname, 182);
                 console.log(`✏️ Nickname: ${myNickname}`);
                 break;
 
