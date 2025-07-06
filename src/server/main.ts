@@ -23,7 +23,6 @@ import {
     handleDisconnect,
     handleCardUse,
     startGame,
-    handleCloseServer,
     nextMove,
     requestToStart,
 } from './game.js';
@@ -42,11 +41,12 @@ export type Client = {
     uuid: string;
     ws: WebSocket;
     nickname: string;
+    disable: boolean;
 };
 
 const clients: Record<string, Client> = {};
 let clientsNumber = 0;
-export let closing = false;
+export let serverClosing = false;
 
 // === 🍪 Обработка /cookies ===
 app.get('/cookies', (req, res) => {
@@ -72,25 +72,36 @@ app.get('/cookies', (req, res) => {
 // === 🔌 Обработка WebSocket-соединений ===
 wss.on('connection', (ws) => {
     let client: Client;
+    const authTimeout = setTimeout(() => ws.close(), 5000);
 
     ws.once('message', (data) => {
-        const { uuid, nickname } = JSON.parse(data.toString()) as { uuid?: string; nickname?: string };
+        clearTimeout(authTimeout);
+
+        let payload;
+        try {
+            payload = JSON.parse(data.toString());
+        } catch (err) {}
+        const { uuid, nickname } = payload as { uuid?: string; nickname?: string };
 
         if (!uuid || !nickname) return ws.close();
 
-        const reconnected = clients[uuid] != undefined;
-        if (reconnected) clients[uuid].ws?.close();
+        const reconnected = clients[uuid]?.disable ?? false;
+        if (reconnected) clients[uuid].ws.close();
         else clientsNumber++;
 
-        client = { uuid, ws, nickname };
-        clients[uuid] = client;
+        client = { uuid, ws, nickname, disable: false };
 
-        if (!handleConnect(client, reconnected)) {
+        let errorCode = handleConnect(client.uuid, reconnected);
+        if (errorCode > 0) {
             error(`${client.nickname} не авторизуется!\n`);
+            ws.close(errorCode);
             return;
         }
 
-        log(`✅ ${client.nickname} авторизуется\n`);
+        clients[uuid] = client;
+
+        if (reconnected) log(`🔁 ${client.nickname} перезаходит\n`);
+        else log(`✅ ${client.nickname} авторизуется\n`);
 
         if (ops.has(uuid)) send(ws, 'op', { op: true });
 
@@ -120,20 +131,26 @@ wss.on('connection', (ws) => {
                 error('Ошибка:', e);
             }
         });
-    });
 
-    ws.on('close', (code) => {
-        if (!client) return;
-        delete clients[client.uuid];
-        if (closing) error(`${client.nickname} отключается`);
-        else
-            setTimeout(() => {
-                if (!clients[client.uuid]) {
-                    handleDisconnect(client.uuid, code);
-                    error(`${client.nickname} отключается`);
-                    clientsNumber--;
-                }
-            }, 500);
+        ws.on('close', (code) => {
+            if (!client) return;
+            if (code >= 4000) {
+                error(`${client.nickname} отключается`);
+                delete clients[client.uuid];
+                clientsNumber--;
+            } else {
+                warn(`${client.nickname} вышел`);
+                clients[client.uuid].disable = true;
+                setTimeout(() => {
+                    if (clients[client.uuid].disable) {
+                        handleDisconnect(client.uuid, code);
+                        warn(`${client.nickname} отключается`);
+                        delete clients[client.uuid];
+                        clientsNumber--;
+                    }
+                }, config.timeout);
+            }
+        });
     });
 });
 
@@ -197,8 +214,8 @@ export function error(...args: any[]) {
 
 // === ⛔ Завершение сервера ===
 async function closeServer() {
-    closing = true;
-    await handleCloseServer();
+    serverClosing = true;
+    await disconnectClients();
 
     wss.close((err) => {
         if (err) log('🛑 Принудительная остановка WebSocket сервера!');
@@ -214,10 +231,45 @@ async function closeServer() {
     });
 }
 
+async function disconnectClients() {
+    endGame(true);
+    const _clients = Object.values(clients);
+    if (_clients.length <= 0) return;
+    log('🕓 Завершение соединений...');
+    for (const client of _clients) {
+        try {
+            if (!client) continue;
+
+            const ws = client.ws;
+            if (ws?.readyState === WebSocket.OPEN) {
+                ws.close(4000);
+                await waitForClose(ws, 2000);
+            }
+        } catch (e) {
+            error('Ошибка при закрытии соединения: ' + e);
+        }
+    }
+}
+
+function waitForClose(ws: WebSocket, timeoutMs: number): Promise<void> {
+    return new Promise((resolve) => {
+        const timer = setTimeout(() => {
+            ws.terminate?.();
+            resolve();
+        }, timeoutMs);
+
+        ws.on('close', () => {
+            clearTimeout(timer);
+            resolve();
+        });
+    });
+}
+
 // === ⚙️ Конфигурация ===
 const config = {
     saveClose: true,
     showDns: false,
+    timeout: 1000,
     game: {
         maxPlayerNumber: 10,
         minSum: 12,
@@ -234,14 +286,15 @@ const config = {
         },
     },
 };
+
 let hasOpFile = fs.existsSync('ops.txt');
-export const ops = new Set(hasOpFile ? fs.readFileSync('ops.txt', 'utf-8').trim().split(/\s+/) : []);
 if (!hasOpFile) fs.writeFileSync('ops.txt', '', 'utf-8');
+export const ops = new Set(hasOpFile ? fs.readFileSync('ops.txt', 'utf-8').trim().split(/\s+/) : []);
 
 function applyConfig() {
-    if (!fs.existsSync('config.json')) {
+    if (merge(config, fs.existsSync('config.json') ? JSON.parse(fs.readFileSync('config.json', 'utf-8')) : undefined)) {
         fs.writeFileSync('config.json', JSON.stringify(config, null, 4), 'utf-8');
-    } else merge(config, JSON.parse(fs.readFileSync('config.json', 'utf-8')));
+    }
 
     if (config.saveClose) process.on('SIGINT', closeServer);
     else process.removeListener('SIGINT', closeServer);
@@ -249,18 +302,26 @@ function applyConfig() {
     applyGameConfig(config);
 }
 
-function merge(target: any, source: any) {
+function merge(target: any, source: any): boolean {
+    if (!source || typeof source !== 'object') return true;
+    let needUpdate = false;
+
     for (const key of Object.keys(target)) {
         if (!(key in source)) continue;
 
         const val = source[key];
         const orig = target[key];
 
-        if (val == undefined || typeof orig !== typeof val) continue;
+        if (val == undefined || typeof orig !== typeof val) {
+            if (val == undefined) needUpdate = true;
+            continue;
+        }
 
-        if (typeof orig === 'object') merge(orig, val);
-        else target[key] = val;
+        if (typeof orig === 'object') {
+            if (merge(orig, val)) needUpdate = true;
+        } else target[key] = val;
     }
+    return needUpdate;
 }
 
 applyConfig();
@@ -296,7 +357,10 @@ const commands: Record<string, (args?: string) => void> = {
     stop: () => endGame(true),
     skip: () => nextMove(true),
     exit: closeServer,
-    terminate: () => process.exit(0),
+    terminate: () => {
+        log('⚠️ Завершение работы сервера!');
+        process.exit(0);
+    },
     say: (args) => {
         if (!args) return log('🚫 Пустое сообщение!');
         log('📢 Сообщение игрокам:', args);

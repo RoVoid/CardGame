@@ -2,7 +2,7 @@
 export {};
 
 import { WebSocket } from 'ws';
-import { Client, closing, getClients, log, ops, sendToUuid } from './main.js';
+import { Client, serverClosing, getClients, log, ops, sendToUuid } from './main.js';
 
 type Player = {
     uuid: string;
@@ -51,21 +51,19 @@ export function applyGameConfig(config: any) {
 }
 
 /* === Подключение игроков === */
-export function handleConnect(client: Client, reconnected: boolean) {
-    const index = reconnected ? players.findIndex((pl) => pl.uuid === client.uuid) : players.length;
+export function handleConnect(uuid: string, reconnected: boolean): number {
+    const index = reconnected ? players.findIndex((pl) => pl.uuid === uuid) : players.length;
 
     if (isGameRunning && index === players.length) {
-        client.ws.close(1001);
-        return false;
+        return 4001;
     }
 
     if (players.length >= maxPlayerNumber) {
-        client.ws.close(1002);
-        return false;
+        return 4002;
     }
 
     if (isGameRunning && reconnected) {
-        sendToUuid(client.uuid, 'start', {
+        sendToUuid(uuid, 'start', {
             sumLimit,
             players: players.map((pl) => ({
                 nickname: getClient(pl).nickname,
@@ -74,11 +72,11 @@ export function handleConnect(client: Client, reconnected: boolean) {
                 sum: pl.sum,
             })),
         });
-        sendToUuid(client.uuid, 'index', { index });
-        sendToUuid(client.uuid, 'move', { index: moveIndex, skip: false });
+        sendToUuid(uuid, 'index', { index });
+        sendToUuid(uuid, 'move', { index: moveIndex, skip: false });
     } else {
         players.push({
-            uuid: client.uuid,
+            uuid,
             index,
             cards: [],
             usedCards: [],
@@ -86,7 +84,7 @@ export function handleConnect(client: Client, reconnected: boolean) {
         });
     }
 
-    return true;
+    return 0;
 }
 
 export function handleDisconnect(uuid: string, code: number) {
@@ -140,11 +138,12 @@ export function startGame() {
 }
 
 export function endGame(force = false) {
+    if (!isGameRunning) return;
     isGameRunning = false;
 
     if (force) {
         log(`🏁 Игра отмена!\n`);
-        if (!closing) broadcast('loser');
+        if (!serverClosing) broadcast('loser');
     } else {
         const client = getClient(players[moveIndex]);
         broadcast('loser', { uuid: client.uuid, nickname: client.nickname });
@@ -286,39 +285,4 @@ function broadcast(type: string, data?: object) {
     for (const player of players) {
         sendToUuid(player.uuid, type, data);
     }
-}
-
-/* === Завершение сервера === */
-export async function handleCloseServer() {
-    if (isGameRunning) endGame(true);
-    if (players.length) log('🕓 Завершение соединений...');
-
-    for (const player of players) {
-        try {
-            const client = getClient(player);
-            if (!client) continue;
-
-            const ws = client.ws;
-            if (ws?.readyState === WebSocket.OPEN) {
-                ws.close(1000);
-                await waitForClose(ws, 2000);
-            }
-        } catch (e) {
-            log('Ошибка при закрытии соединения: ' + e);
-        }
-    }
-}
-
-function waitForClose(ws: WebSocket, timeoutMs: number): Promise<void> {
-    return new Promise((resolve) => {
-        const timer = setTimeout(() => {
-            ws.terminate?.();
-            resolve();
-        }, timeoutMs);
-
-        ws.on('close', () => {
-            clearTimeout(timer);
-            resolve();
-        });
-    });
 }

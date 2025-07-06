@@ -4,7 +4,8 @@ export {};
 await fetch('/cookies', { method: 'GET', credentials: 'include' });
 
 function getCookie(name: string) {
-    const match = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+    const regex = new RegExp('(^|;) ?' + name + '=([^;]*)(;|$)');
+    const match = regex.exec(document.cookie);
     return match ? decodeURIComponent(match[2]) : '';
 }
 
@@ -104,38 +105,38 @@ ws.addEventListener('message', (event) => {
     try {
         const { type, data } = JSON.parse(event.data) as { type: string; data: any };
         switch (type) {
-            case 'op':
+            case 'op': {
                 startButton.style.display = data.op ? '' : 'none';
                 break;
-
-            case 'nickname':
-                const filtered = data.nickname || myNickname;
+            }
+            case 'nickname': {
+                const filtered = data.nickname ?? myNickname;
                 if (lobbyElement.style.display !== 'none') {
                     nicknameInput.placeholder = nicknameInput.value = filtered;
                     nicknameInput.style.animation = 'none';
-                    nicknameInput.offsetHeight;
                     nicknameInput.style.animation = (myNickname === filtered ? 'nickAccept' : 'nickReject') + ' 0.5s 1';
                 }
                 myNickname = filtered;
                 setCookie('nickname', myNickname, 182);
                 console.log(`✏️ Nickname: ${myNickname}`);
                 break;
+            }
 
-            case 'say':
+            case 'say': {
                 showMessage(data.msg);
                 break;
-
-            case 'cards':
+            }
+            case 'cards': {
                 if (data.cards !== undefined) cards = data.cards;
                 renderHand();
                 break;
-
-            case 'index':
+            }
+            case 'index': {
                 myIndex = data.index;
                 console.log(`🆔 Index: ${myIndex}`);
                 break;
-
-            case 'start':
+            }
+            case 'start': {
                 lobbyElement.style.display = 'none';
                 gameElement.style.display = '';
                 sumLimit = data.sumLimit;
@@ -145,8 +146,8 @@ ws.addEventListener('message', (event) => {
                 moveIndex = -1;
                 renderPlayers();
                 break;
-
-            case 'move':
+            }
+            case 'move': {
                 if (moveIndex > -1) {
                     document.getElementById('player' + moveIndex)?.removeAttribute('selected');
                     document.getElementById('player' + ((moveIndex + 1) % players.length))?.removeAttribute('next');
@@ -156,8 +157,8 @@ ws.addEventListener('message', (event) => {
                 document.getElementById('player' + moveIndex)?.toggleAttribute('selected');
                 document.getElementById('player' + ((moveIndex + 1) % players.length))?.toggleAttribute('next');
                 break;
-
-            case 'player':
+            }
+            case 'player': {
                 const index = data.index;
                 if (index < 0 || index >= players.length) return;
 
@@ -169,8 +170,8 @@ ws.addEventListener('message', (event) => {
                 players[index].usedCards = data.usedCards;
                 updatePlayer(index);
                 break;
-
-            case 'playerLeft':
+            }
+            case 'playerLeft': {
                 const leaveIndex = data.index;
                 if (leaveIndex < 0 || leaveIndex >= players.length) return;
 
@@ -185,23 +186,28 @@ ws.addEventListener('message', (event) => {
                 showMessage(`🚪 ${players[leaveIndex].nickname} выходит`);
                 players.splice(leaveIndex, 1);
                 break;
-
-            case 'loser':
+            }
+            case 'loser': {
+                let text =
+                    data.uuid === myUuid
+                        ? `😭 Игра окончена! Вы проигрываете! 💔`
+                        : `🎉 Игра окончена! ${data.nickname} проигрывает! 😎👌🔥`;
                 setTimeout(() => {
                     nicknameInput.placeholder = myNickname;
                     nicknameInput.value = '';
                     lobbyElement.style.display = '';
                     gameElement.style.display = 'none';
-                }, showMessage(data ? (data.uuid === myUuid ? `😭 Игра окончена! Вы проигрываете! 💔` : `🎉 Игра окончена! ${data.nickname} проигрывает! 😎👌🔥`) : '🛑 Игра отменена!') + 1000);
+                }, showMessage(data ? text : '🛑 Игра отменена!') + 1000);
                 if (data) endAudio.play();
                 break;
-
-            case 'error':
+            }
+            case 'error': {
                 showMessage('❌ Ошибка: ' + data.msg);
                 break;
-
-            default:
+            }
+            default: {
                 console.warn('❓ Неизвестный тип:', type, data);
+            }
         }
     } catch (e) {
         console.error('❌ Ошибка обработки сообщения:', e);
@@ -209,8 +215,8 @@ ws.addEventListener('message', (event) => {
 });
 
 ws.addEventListener('close', ({ code }) => {
-    if (code >= 1000 && code <= 1002) {
-        const reason = ['❌ Сервер завершил работу!', '🛑 Игра уже началась!', '🚫 Нет мест!'][code - 1000];
+    if (code >= 4000 && code <= 4002) {
+        const reason = ['❌ Сервер завершил работу!', '🛑 Игра уже началась!', '🚫 Нет мест!'][code - 4000];
         if (gameElement.style.display !== 'none') {
             lobbyElement.style.display = 'none';
             gameElement.style.display = 'none';
@@ -263,50 +269,52 @@ function renderHand() {
     }
 }
 
+function createPlayerElement(player: Player, isMe: boolean): HTMLDivElement {
+    const container = document.createElement('div');
+    container.className = 'player';
+    container.id = `player${player.index}`;
+
+    const title = document.createElement('span');
+    title.textContent = `${player.nickname}  /  ${player.sum}`;
+    container.appendChild(title);
+
+    if (!isMe) {
+        const hand = document.createElement('div');
+        hand.className = 'cards';
+        for (let i = 0; i < player.cardsNumber; i++) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.setAttribute('type', 'hidden');
+            hand.appendChild(card);
+        }
+        container.appendChild(hand);
+    }
+
+    const used = document.createElement('div');
+    used.className = 'used-cards';
+    if (player.usedCards.length) {
+        for (const usedCard of player.usedCards) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.setAttribute('type', usedCard);
+            used.appendChild(card);
+        }
+        let maxGap = player.usedCards.length >= 10 ? -40 : 5 + ((player.usedCards.length - 4) / 6) * -45;
+        let gap = player.usedCards.length <= 4 ? 5 : maxGap;
+        used.style.setProperty('--gap', `${gap}px`);
+    }
+    container.appendChild(used);
+    container.onclick = () => selectTarget(player.index);
+    return container;
+}
+
 function renderPlayers() {
     const panel = playersElement;
     panel.innerHTML = '';
     const _players = players.slice(myIndex).concat(players.slice(0, myIndex));
     for (const player of _players) {
-        const container = document.createElement('div');
-        container.className = 'player';
-        container.id = `player${player.index}`;
-
-        const title = document.createElement('span');
-        title.textContent = `${player.nickname}  /  ${player.sum}`;
-        container.appendChild(title);
-
-        if (player.index !== myIndex) {
-            const hand = document.createElement('div');
-            hand.className = 'cards';
-            for (let i = 0; i < player.cardsNumber; i++) {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.setAttribute('type', 'hidden');
-                hand.appendChild(card);
-            }
-            container.appendChild(hand);
-        }
-
-        const used = document.createElement('div');
-        used.className = 'used-cards';
-        if (player.usedCards.length) {
-            for (const usedCard of player.usedCards) {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.setAttribute('type', usedCard);
-                used.appendChild(card);
-            }
-            let gap =
-                player.usedCards.length <= 4
-                    ? 5
-                    : player.usedCards.length >= 10
-                    ? -40
-                    : 5 + ((player.usedCards.length - 4) / 6) * -45;
-            used.style.setProperty('--gap', `${gap}px`);
-        }
-        container.appendChild(used);
-        container.onclick = () => selectTarget(player.index);
+        const isMe = player.index === myIndex;
+        const container = createPlayerElement(player, isMe);
         panel.appendChild(container);
     }
 }
@@ -328,7 +336,7 @@ function updatePlayer(index: number) {
         }
     }
 
-    const used = container.querySelector('.used-cards')! as HTMLElement;
+    const used = container.querySelector('.used-cards') as HTMLElement;
     used.innerHTML = '';
     const count = players[index].usedCards.length;
     if (count) {
@@ -338,7 +346,8 @@ function updatePlayer(index: number) {
             card.setAttribute('type', usedCard);
             used.appendChild(card);
         }
-        let gap = count <= 4 ? 5 : count >= 10 ? -40 : 5 + ((count - 4) / 6) * -45;
+        let maxGap = count >= 10 ? -40 : 5 + ((count - 4) / 6) * -45;
+        let gap = count <= 4 ? 5 : maxGap;
         used.style.setProperty('--gap', `${gap}px`);
     }
 }
