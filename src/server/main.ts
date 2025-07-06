@@ -281,6 +281,7 @@ const commands: Record<string, (args?: string) => void> = {
             op: '🛡️ Сделать игрока оператором',
             deop: '🚫 Убрать оператора',
             memory: '📟 Показать использование памяти и ресурсов',
+            net: '🔗 Показывает IP и DNS',
         };
 
         log('\n📖 Доступные команды:');
@@ -373,6 +374,7 @@ const commands: Record<string, (args?: string) => void> = {
             })
             .catch((err) => error('❌ Ошибка получения ресурсов:', err));
     },
+    net: showIPandDNS,
 };
 
 // === 🚀 Запуск сервера ===
@@ -402,29 +404,32 @@ async function startServer() {
         process.exit(1);
     }
 
-    server.listen(PORT, () => {
-        log(`🚀 Сервер запущен на:`);
-        log(`  💻 http://localhost:${PORT}`);
-
-        const nets = os.networkInterfaces();
-        for (const name in nets) {
-            for (const net of nets[name]!) {
-                if (net.family === 'IPv4' && !net.internal) {
-                    const addr = net.address;
-                    const emoji = addr.startsWith('192.') || addr.startsWith('10.') || addr.startsWith('172.') ? '🏠' : '🌐';
-                    log(`  ${emoji} http://${addr}:${PORT}`);
-                }
-            }
-        }
-
-        if (config.showDns) {
-            log();
-            logReverseDNS();
-        }
-    });
+    server.listen(PORT, showIPandDNS);
 }
 
 startServer();
+
+// === 🌍 IP & DNS ===
+async function showIPandDNS() {
+    log(`🚀 Сервер запущен на:`);
+    log(`  💻 http://localhost:${PORT}`);
+
+    const nets = os.networkInterfaces();
+    for (const name in nets) {
+        for (const net of nets[name]!) {
+            if (net.family === 'IPv4' && !net.internal) {
+                const addr = net.address;
+                const emoji = addr.startsWith('192.') || addr.startsWith('10.') || addr.startsWith('172.') ? '🏠' : '🌐';
+                log(`  ${emoji} http://${addr}:${PORT}`);
+            }
+        }
+    }
+
+    if (config.showDns) {
+        log();
+        logReverseDNS();
+    }
+}
 
 // === 🌍 Обратный DNS ===
 function getPublicIP(): Promise<string> {

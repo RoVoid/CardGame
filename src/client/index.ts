@@ -41,8 +41,8 @@ const lobbyElement = document.getElementById('lobby')!;
 const gameElement = document.getElementById('game')!;
 const playersElement = document.getElementById('players')!;
 const handDiv = document.getElementById('cards')!;
-const endAudio = new Audio('./assets/end.mp3');
-const moveAudio = new Audio('./assets/move.mp3');
+const endAudio = new Audio('./assets/sounds/end.mp3');
+const moveAudio = new Audio('./assets/sounds/move.mp3');
 const startButton = document.getElementById('start')!;
 
 // Tooltip Descriptions

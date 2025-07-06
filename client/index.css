@@ -138,39 +138,39 @@ body {
 
 /* Типы карт */
 .card[type="0"] {
-    background-image: url('assets/0.png');
+    background-image: url('assets/textures/0.png');
 }
 
 .card[type="1"] {
-    background-image: url('assets/1.png');
+    background-image: url('assets/textures/1.png');
 }
 
 .card[type="2"] {
-    background-image: url('assets/2.png');
+    background-image: url('assets/textures/2.png');
 }
 
 .card[type="3"] {
-    background-image: url('assets/3.png');
+    background-image: url('assets/textures/3.png');
 }
 
 .card[type="4"] {
-    background-image: url('assets/4.png');
+    background-image: url('assets/textures/4.png');
 }
 
 .card[type="plus"] {
-    background-image: url('assets/plus.png');
+    background-image: url('assets/textures/plus.png');
 }
 
 .card[type="bin"] {
-    background-image: url('assets/bin.png');
+    background-image: url('assets/textures/bin.png');
 }
 
 .card[type="swap"] {
-    background-image: url('assets/swap.png');
+    background-image: url('assets/textures/swap.png');
 }
 
 .card[type="hidden"] {
-    background-image: url('assets/hidden.png');
+    background-image: url('assets/textures/hidden.png');
 }
 
 /* Подсказка */
