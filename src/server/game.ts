@@ -62,7 +62,18 @@ export function handleConnect(uuid: string, reconnected: boolean): number {
         return 4002;
     }
 
-    if (isGameRunning && reconnected) {
+    if (!reconnected) {
+        players.push({
+            uuid,
+            index,
+            cards: [],
+            usedCards: [],
+            sum: 0,
+        });
+        return 0;
+    }
+
+    if (isGameRunning) {
         sendToUuid(uuid, 'start', {
             sumLimit,
             players: players.map((pl) => ({
@@ -74,14 +85,6 @@ export function handleConnect(uuid: string, reconnected: boolean): number {
         });
         sendToUuid(uuid, 'index', { index });
         sendToUuid(uuid, 'move', { index: moveIndex, skip: false });
-    } else {
-        players.push({
-            uuid,
-            index,
-            cards: [],
-            usedCards: [],
-            sum: 0,
-        });
     }
 
     return 0;
