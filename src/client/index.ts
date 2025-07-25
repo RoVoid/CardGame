@@ -151,7 +151,7 @@ ws.addEventListener('message', (event) => {
                 if (moveIndex > -1) {
                     document.getElementById('player' + moveIndex)?.removeAttribute('selected');
                     document.getElementById('player' + ((moveIndex + 1) % players.length))?.removeAttribute('next');
-                    if (!data.skip) moveAudio.play();
+                    moveAudio.play();
                 }
                 moveIndex = data.index;
                 document.getElementById('player' + moveIndex)?.toggleAttribute('selected');

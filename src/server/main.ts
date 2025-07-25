@@ -25,6 +25,7 @@ import {
     startGame,
     nextMove,
     requestToStart,
+    makeMove,
 } from './game.js';
 
 // === ⚙️ Настройка Express и WebSocket ===
@@ -273,6 +274,7 @@ const config = {
     game: {
         maxPlayerNumber: 10,
         minSum: 12,
+        sumPerPlayer: 5,
         cardsInHand: 4,
         cards: {
             '0': 10,
@@ -355,7 +357,7 @@ const commands: Record<string, (args?: string) => void> = {
     },
     start: startGame,
     stop: () => endGame(true),
-    skip: () => nextMove(true),
+    skip: () => makeMove(),
     exit: closeServer,
     terminate: () => {
         log('⚠️ Завершение работы сервера!');

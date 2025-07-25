@@ -28,6 +28,7 @@ const players: Player[] = [];
 
 let maxPlayerNumber = 10;
 let minSum = 12;
+let sumPerPlayer = 4;
 let cardsInHand = 4;
 let sumLimit = 12;
 let isGameRunning = false;
@@ -38,10 +39,11 @@ let moveIndex = -1;
 
 /* === Конфигурация === */
 export function applyGameConfig(config: any) {
-    const { maxPlayerNumber: _max, minSum: _min, cardsInHand: _hand, cards: _cards } = config.game;
+    const { maxPlayerNumber: _max, minSum: _min, sumPerPlayer: _minPer, cardsInHand: _hand, cards: _cards } = config.game;
 
     if (_max && _max > 1) maxPlayerNumber = _max;
     if (_min && _min > 1) minSum = _min;
+    if (_minPer && _minPer > 1) sumPerPlayer = _minPer;
     if (_hand && _hand > 3) cardsInHand = _hand;
 
     if (_cards && typeof _cards === 'object') {
@@ -115,7 +117,7 @@ export function startGame() {
 
     isGameRunning = true;
     sum = 0;
-    sumLimit = Math.max(minSum, players.length * 4);
+    sumLimit = Math.max(minSum, players.length * sumPerPlayer);
 
     for (const [i, player] of players.entries()) {
         player.cards = [];
@@ -154,12 +156,17 @@ export function endGame(force = false) {
     }
 }
 
+/* === Выполнение хода за игрока === */
+export function makeMove() {
+    handleCardUse(players[moveIndex].uuid, players[moveIndex].cards[0], moveIndex);
+}
+
 /* === Следующий ход === */
-export function nextMove(skip = false) {
+export function nextMove() {
     if (!isGameRunning) return;
 
     moveIndex = (moveIndex + 1) % players.length;
-    broadcast('move', { index: moveIndex, skip });
+    broadcast('move', { index: moveIndex });
 
     const current = players[moveIndex];
 
