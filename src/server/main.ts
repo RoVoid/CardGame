@@ -15,6 +15,7 @@ import cookieParser from 'cookie-parser';
 import fs from 'fs';
 import dns from 'dns';
 import https from 'https';
+import QRCode from 'qrcode';
 
 import {
     applyGameConfig,
@@ -345,6 +346,7 @@ const commands: Record<string, (args?: string) => void> = {
             deop: '🚫 Убрать оператора',
             memory: '📟 Показать использование памяти и ресурсов',
             net: '🔗 Показывает IP и DNS',
+            qr: '🖼️ Выводит адреса сервера через QR коды',
         };
 
         log('\n📖 Доступные команды:');
@@ -441,9 +443,11 @@ const commands: Record<string, (args?: string) => void> = {
             .catch((err) => error('❌ Ошибка получения ресурсов:', err));
     },
     net: showIPandDNS,
+    qr: logQrCodes,
 };
 
 // === 🚀 Запуск сервера ===
+const urls: Set<string> = new Set();
 let PORT = -1;
 
 async function tryListen(port: number): Promise<number> {
@@ -486,7 +490,9 @@ async function showIPandDNS() {
             if (net.family === 'IPv4' && !net.internal) {
                 const addr = net.address;
                 const emoji = addr.startsWith('192.') || addr.startsWith('10.') || addr.startsWith('172.') ? '🏠' : '🌐';
-                log(`  ${emoji} http://${addr}:${PORT}`);
+                let url = `http://${addr}:${PORT}`;
+                urls.add(url);
+                log(`  ${emoji} ${url}`);
             }
         }
     }
@@ -519,5 +525,12 @@ async function logReverseDNS() {
         });
     } catch {
         error(`Не удалось получить внешний IP`);
+    }
+}
+
+async function logQrCodes() {
+    for (const url of urls) {
+        log(url);
+        log(await QRCode.toString(url, { type: 'terminal', small: true }));
     }
 }
